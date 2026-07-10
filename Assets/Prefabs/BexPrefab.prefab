@@ -1,0 +1,150 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &5775633393764669190
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5112117863032267160}
+  - component: {fileID: 1334567399310357641}
+  m_Layer: 0
+  m_Name: BexPrefab
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5112117863032267160
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5775633393764669190}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.48255, y: -1.37954, z: -0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 2833640205530766203}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1334567399310357641
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5775633393764669190}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4bb48e81371aac94289b57cbeade2b4f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FlowBlast.Gameplay.Conveyor.BottomConveyorController
+  splineContainer: {fileID: 0}
+  splineIndex: 0
+  boxPrefab: {fileID: 0}
+  spacing: 2
+  moveSpeed: 2
+  loop: 1
+  gatePoint: {fileID: 0}
+  receivePoint: {fileID: 0}
+  rotateToDirection: 1
+  rotationOffset: {x: 0, y: 0, z: 0}
+  sampleCount: 100
+--- !u!1001 &2367105312765279376
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 5112117863032267160}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: e7a6c9273f124464faf8b5b73dcfdbb6, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e7a6c9273f124464faf8b5b73dcfdbb6, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -6.0774302
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e7a6c9273f124464faf8b5b73dcfdbb6, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e7a6c9273f124464faf8b5b73dcfdbb6, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e7a6c9273f124464faf8b5b73dcfdbb6, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e7a6c9273f124464faf8b5b73dcfdbb6, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e7a6c9273f124464faf8b5b73dcfdbb6, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e7a6c9273f124464faf8b5b73dcfdbb6, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e7a6c9273f124464faf8b5b73dcfdbb6, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e7a6c9273f124464faf8b5b73dcfdbb6, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: e7a6c9273f124464faf8b5b73dcfdbb6, type: 3}
+      propertyPath: m_Name
+      value: box
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: e7a6c9273f124464faf8b5b73dcfdbb6, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 153546285052021315}
+  m_SourcePrefab: {fileID: 100100000, guid: e7a6c9273f124464faf8b5b73dcfdbb6, type: 3}
+--- !u!4 &2833640205530766203 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: e7a6c9273f124464faf8b5b73dcfdbb6, type: 3}
+  m_PrefabInstance: {fileID: 2367105312765279376}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &3177514303307465153 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: e7a6c9273f124464faf8b5b73dcfdbb6, type: 3}
+  m_PrefabInstance: {fileID: 2367105312765279376}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &153546285052021315
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3177514303307465153}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 418be9d6ca3124549b73c48df3c35158, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FlowBlast.Gameplay.Conveyor.BoxTapMover
+  splineContainer: {fileID: 0}
+  splineIndex: 0
+  receivePoint: {fileID: 0}
+  jumpDuration: 0.2
+  moveSpeed: 2
+  loop: 1
+  rotateToDirection: 1
+  rotationOffset: {x: 0, y: 0, z: 0}
+  mainCamera: {fileID: 0}
+  sampleCount: 100

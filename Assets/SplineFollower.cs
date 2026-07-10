@@ -25,27 +25,27 @@ public class SplineFollower : MonoBehaviour
     private List<float> cumulativeDistances = new List<float>();
     private List<float> cumulativeTs = new List<float>();
 
-    private void Start()
-    {
-        if (splineContainer == null)
+private void Start()
         {
-            Debug.LogError($"{name}: SplineContainer is not assigned!");
-            enabled = false;
-            return;
+            if (splineContainer == null)
+            {
+                Debug.LogWarning($"{name}: SplineContainer is not assigned. SplineFollower will stay idle until you assign a SplineContainer.");
+                enabled = false;
+                return;
+            }
+
+            BuildSplineCache();
+
+            if (splineLength <= 0f)
+            {
+                Debug.LogWarning($"{name}: Invalid spline length. SplineFollower will stay idle.");
+                enabled = false;
+                return;
+            }
+
+            // Đặt object vào vị trí đầu spline ngay từ đầu
+            UpdateFollower(0f);
         }
-
-        BuildSplineCache();
-
-        if (splineLength <= 0f)
-        {
-            Debug.LogError($"{name}: Invalid spline length!");
-            enabled = false;
-            return;
-        }
-
-        // Đặt object vào vị trí đầu spline ngay từ đầu
-        UpdateFollower(0f);
-    }
 
     private void Update()
     {
