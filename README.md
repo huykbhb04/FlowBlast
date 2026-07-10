@@ -107,9 +107,7 @@ Xem chi tiết trong **`Assets/ScriptableObjects/GRID_MAP_DESIGNER_GUIDE.md`** v
 3. Scenes in Build: kéo `Day03_ConveyorTest.unity` vào.
 4. Build → kiểm tra `.apk` hoặc `.exe`.
 
-(Chưa build mobile trong tuần 1 — đề xuất làm cuối tuần 2.)
 
----
 
 
 
