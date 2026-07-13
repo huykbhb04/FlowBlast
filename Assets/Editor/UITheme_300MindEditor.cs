@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
@@ -11,24 +12,28 @@ namespace FlowBlast.EditorTools
     /// <summary>
     /// Custom inspector for <see cref="UITheme_300Mind"/>.
     ///
-    /// Adds a "Bake All References" button that:
-    ///   - Auto-fills every Sprite field by scanning Assets/300Mind/2D Game UI Kit/Sprites
-    ///     and matching names against keywords (panel / button / progress / icon / etc).
-    ///   - Auto-fills fonts with TMP_Settings.defaultFontAsset (LiberationSans SDF) so
-    ///     every text has a usable atlas (the previous Oswald assets had null atlas).
-    ///   - Verifies the canvas-plus-image wiring is sane (no missing sprites).
+    /// Adds a "Bake All References" button that wires every Sprite / Material / Font slot
+    /// of the theme to a real asset from the 300Mind kit (or sensible fallback) so the
+    /// MainMenu builder doesn't fall back to flat coloured quads.
     ///
-    /// The inspector also renders the default property fields so a developer can
-    /// override any choice manually.
+    /// Mapping rules (driven by layout, NOT name - all sub-sprites in the kit are named
+    /// <c>UI-pack_Sprite_{N}_{X}_{Y}</c> so name-based heuristics cannot tell a coin from
+    /// a button):
+    ///
+    ///  * <c>UI-pack_Sprite_2.png</c> is a 4x4 grid of panel / progress / button families
+    ///    (col x row):
+    ///        row 0 (y=864) -> panels      (teal / orange / blue / beige)
+    ///        row 1 (y=576) -> headered panels
+    ///        row 2 (y=288) -> progress bars
+    ///        row 3 (y=0)   -> rounded buttons
+    ///  * <c>UI-pack_Sprite_1.png</c> is a 9x9 grid of decorations (banners, icon-buttons,
+    ///    badges, scroll background, cloud/planet backgrounds).
     /// </summary>
     [CustomEditor(typeof(UITheme_300Mind))]
     public class UITheme_300MindEditor : Editor
     {
-        private static readonly string[] SpriteSheetPaths =
-        {
-            "Assets/300Mind/2D Game UI Kit/Sprites/UI-pack_Sprite_1.png",
-            "Assets/300Mind/2D Game UI Kit/Sprites/UI-pack_Sprite_2.png",
-        };
+        private const string SpriteSheet1 = "Assets/300Mind/2D Game UI Kit/Sprites/UI-pack_Sprite_1.png";
+        private const string SpriteSheet2 = "Assets/300Mind/2D Game UI Kit/Sprites/UI-pack_Sprite_2.png";
 
         public override void OnInspectorGUI()
         {
@@ -39,137 +44,186 @@ namespace FlowBlast.EditorTools
             EditorGUILayout.Space(8);
             EditorGUILayout.LabelField("Auto-fill (Editor)", EditorStyles.boldLabel);
 
-            if (GUILayout.Button("Bake All References (auto-fill sprites + fonts)"))
+            if (GUILayout.Button("Bake All References (auto-fill sprites + fonts + material)"))
             {
                 BakeAllReferences((UITheme_300Mind)target);
             }
 
+            if (GUILayout.Button("Create + Assign UI/Default Material"))
+            {
+                BakeMaterial((UITheme_300Mind)target);
+            }
+
             EditorGUILayout.HelpBox(
-                "Bake scans the 300Mind sprite sheets for sub-sprites whose names match\n" +
-                "common keywords (panel / button / progress / coin / star / etc.) and wires\n" +
-                "them to the matching slot. Fonts are set to TMP_Settings.defaultFontAsset\n" +
-                "(LiberationSans SDF) which always has a populated atlas.",
+                "Bake maps sprites by their GRID POSITION in the 2 sheets (not by name):\n" +
+                "  - Sprite_2 row 0 = panels, row 1 = headered panels, row 2 = progress bars, row 3 = buttons\n" +
+                "  - Sprite_1 = decorations, banners, icon-button tiles, clouds background\n" +
+                "Icons (coin/star/play/...) the kit doesn't ship are left null so the builder can fall back to TMP text labels.",
                 MessageType.Info);
 
             EditorGUILayout.Space(4);
             using (new EditorGUI.DisabledScope(true))
             {
                 var theme = (UITheme_300Mind)target;
-                EditorGUILayout.Toggle("Is baked (sprites + fonts ready)",
+                EditorGUILayout.Toggle("Is baked (sprites + fonts + material ready)",
                     theme.IsBaked);
+                EditorGUILayout.IntField("Sprites filled", CountFilledSprites(theme));
             }
         }
 
         // -------------------------------------------------------------
-        // Bake
+        // Bake - fills sprites + fonts
         // -------------------------------------------------------------
         private static void BakeAllReferences(UITheme_300Mind theme)
         {
             if (theme == null) return;
-
             Undo.RecordObject(theme, "Bake UITheme_300Mind References");
 
-            // Build sub-sprite lookup keyed by lower-cased name fragment.
-            var subSpriteByName = LoadAllSubSprites();
+            var byPath = BuildSpriteGridIndex();
 
-            // Helper: pick first sprite whose name contains any of the fragments.
-            Sprite PickSprite(Sprite fallback, params string[] fragments)
-            {
-                foreach (var frag in fragments)
-                {
-                    if (subSpriteByName.TryGetValue(frag, out var s) && s != null) return s;
-                }
-                return fallback;
-            }
+            // ---- Sprite_2 grid (4x4) ----
+            // Row 0 (y=864): 4 panels; pick column 0 (teal) as the main panel background.
+            theme.panelBackground = Pick(byPath, SpriteSheet2, 0, 0);
+            theme.panelHeader     = Pick(byPath, SpriteSheet2, 0, 1); // headered panel
+            // Row 3 (y=0): 4 rounded buttons (orange, blue, green, yellow). Use orange as default.
+            theme.buttonNormal    = Pick(byPath, SpriteSheet2, 0, 3);
+            theme.buttonPressed   = Pick(byPath, SpriteSheet2, 1, 3);
+            theme.buttonDisabled  = Pick(byPath, SpriteSheet2, 3, 3); // yellow acts as "soft"/alt
+            // Row 2 (y=288): progress bars
+            theme.progressBarBg   = Pick(byPath, SpriteSheet2, 0, 2);
+            theme.progressBarFill = Pick(byPath, SpriteSheet2, 1, 2);
 
-            theme.panelBackground    = PickSprite(theme.panelBackground,    "panel", "bg", "background");
-            theme.panelHeader        = PickSprite(theme.panelHeader,        "header");
-            theme.buttonNormal       = PickSprite(theme.buttonNormal,       "button");
-            theme.buttonPressed      = PickSprite(theme.buttonPressed,      "button_pressed", "button-pressed");
-            theme.buttonDisabled     = PickSprite(theme.buttonDisabled,     "button_disabled", "button-disabled");
-            theme.progressBarBg      = PickSprite(theme.progressBarBg,      "progress", "progressbar", "progress_bar");
-            theme.progressBarFill    = PickSprite(theme.progressBarFill,    "progress_fill", "progress-fill", "fill");
+            // ---- Sprite_1 grid (9x9) decorations ----
+            // Background scene: top-left wide banner (row 0 col 0) acts as a cloud background.
+            theme.backgroundScene   = Pick(byPath, SpriteSheet1, 0, 0);
+            theme.planetDecoration  = Pick(byPath, SpriteSheet1, 8, 0); // right-most decoration
 
-            theme.iconCoin           = PickSprite(theme.iconCoin,           "coin");
-            theme.iconStar           = PickSprite(theme.iconStar,           "star");
-            theme.iconSettings       = PickSprite(theme.iconSettings,       "settings", "gear", "cog");
-            theme.iconLevel          = PickSprite(theme.iconLevel,          "level");
-            theme.iconPlay           = PickSprite(theme.iconPlay,           "play");
-            theme.iconQuit           = PickSprite(theme.iconQuit,           "quit", "exit");
-            theme.iconBack           = PickSprite(theme.iconBack,           "back", "arrow");
-            theme.iconPause          = PickSprite(theme.iconPause,          "pause");
-            theme.iconRestart        = PickSprite(theme.iconRestart,        "restart", "refresh", "replay");
-            theme.iconMusic          = PickSprite(theme.iconMusic,          "music", "note");
-            theme.iconSfx            = PickSprite(theme.iconSfx,            "sfx", "sound");
-            theme.iconVibration      = PickSprite(theme.iconVibration,      "vibration", "vibrate");
-            theme.backgroundScene    = PickSprite(theme.backgroundScene,    "background", "bg", "scene", "clouds", "sky");
-            theme.planetDecoration   = PickSprite(theme.planetDecoration,   "planet", "decoration", "ornament");
+            // Icons: kit only ships icon-button tiles, no standalone coin/star/etc.
+            // Leave them null - UIThemeBuilder falls back to TMP text. Users can override
+            // any slot manually in the inspector afterwards.
+            theme.iconCoin      = null;
+            theme.iconStar      = null;
+            theme.iconSettings  = null;
+            theme.iconLevel     = null;
+            theme.iconPlay      = null;
+            theme.iconQuit      = null;
+            theme.iconBack      = null;
+            theme.iconPause     = null;
+            theme.iconRestart   = null;
+            theme.iconMusic     = null;
+            theme.iconSfx       = null;
+            theme.iconVibration = null;
 
-            // Fonts: always use the project default TMP font (it ships with an atlas).
-            var font = TMP_Settings.defaultFontAsset;
-            if (font == null)
-            {
-                // Fallback: scan Resources for any LiberationSans SDF asset.
-                string[] guids = AssetDatabase.FindAssets("LiberationSans SDF t:TMP_FontAsset");
-                foreach (var g in guids)
-                {
-                    var p = AssetDatabase.GUIDToAssetPath(g);
-                    var f = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(p);
-                    if (f != null) { font = f; break; }
-                }
-            }
-
+            // ---- Fonts ----
+            var font = ResolveDefaultFont();
             if (font != null)
             {
-                theme.titleFont   = font;
-                theme.bodyFont    = font;
-                theme.buttonFont  = font;
+                theme.titleFont  = font;
+                theme.bodyFont   = font;
+                theme.buttonFont = font;
             }
 
             EditorUtility.SetDirty(theme);
             AssetDatabase.SaveAssets();
 
-            int filledSprites = CountFilledSprites(theme);
-            Debug.Log($"[UITheme_300Mind] Bake complete. {filledSprites} sprites filled, " +
-                      $"font = {(font != null ? font.name : "<null>")}.");
+            int filled = CountFilledSprites(theme);
+            Debug.Log($"[UITheme_300Mind] Bake complete. {filled} sprites filled, " +
+                      $"font = {(font != null ? font.name : "<null>")}, " +
+                      $"material = {(theme.defaultUiMaterial != null ? theme.defaultUiMaterial.name : "<null>")}.");
         }
 
         // -------------------------------------------------------------
-        // Sprite loading
+        // Material - create or find UI/Default material
         // -------------------------------------------------------------
-        private static Dictionary<string, Sprite> LoadAllSubSprites()
+        private static void BakeMaterial(UITheme_300Mind theme)
         {
-            var dict = new Dictionary<string, Sprite>();
-            foreach (var path in SpriteSheetPaths)
+            if (theme == null) return;
+            Undo.RecordObject(theme, "Bake UITheme Material");
+
+            const string matPath = "Assets/UI/UITheme_300Mind_Mat.mat";
+            var existing = AssetDatabase.LoadAssetAtPath<Material>(matPath);
+            if (existing == null)
             {
-                if (!File.Exists(path)) continue;
-
-                var sprites = AssetDatabase.LoadAllAssetsAtPath(path);
-                foreach (var obj in sprites)
+                Shader sh = Shader.Find("UI/Default");
+                if (sh == null) sh = Shader.Find("Sprites/Default");
+                if (sh == null)
                 {
-                    if (obj is Sprite s && !string.IsNullOrEmpty(s.name))
-                    {
-                        // Insert keyed by the FULL name and also every underscore-segment,
-                        // so a sprite named "button_normal_round" can be looked up via
-                        // "button", "normal", or "round".
-                        var normalized = Normalize(s.name);
-                        if (!dict.ContainsKey(normalized)) dict[normalized] = s;
-
-                        foreach (var seg in s.name.Split(new[] { '_', '-', ' ' }))
-                        {
-                            var key = Normalize(seg);
-                            if (string.IsNullOrEmpty(key)) continue;
-                            if (!dict.ContainsKey(key)) dict[key] = s;
-                        }
-                    }
+                    Debug.LogError("[UITheme_300Mind] Cannot find UI/Default shader.");
+                    return;
                 }
+
+                Directory.CreateDirectory("Assets/UI");
+                var mat = new Material(sh) { name = "UITheme_300Mind_Mat" };
+                AssetDatabase.CreateAsset(mat, matPath);
+                AssetDatabase.SaveAssets();
+                existing = mat;
             }
+
+            theme.defaultUiMaterial = existing;
+            EditorUtility.SetDirty(theme);
+            Debug.Log($"[UITheme_300Mind] Material assigned: {existing.name}");
+        }
+
+        // -------------------------------------------------------------
+        // Helpers
+        // -------------------------------------------------------------
+        /// <summary>
+        /// Build a lookup: path -> (col,row) -> Sprite.  Sprite_2 is 4 wide, Sprite_1 is 9 wide.
+        /// Indexing is col*x + row*width so the first sprite is (col=0,row=0).
+        /// </summary>
+        private static Dictionary<string, Dictionary<(int col, int row), Sprite>> BuildSpriteGridIndex()
+        {
+            var dict = new Dictionary<string, Dictionary<(int, int), Sprite>>();
+            BuildSheetIndex(SpriteSheet2, 4, dict);
+            BuildSheetIndex(SpriteSheet1, 9, dict);
             return dict;
         }
 
-        private static string Normalize(string s)
+        private static void BuildSheetIndex(string path, int cols,
+            Dictionary<string, Dictionary<(int col, int row), Sprite>> dict)
         {
-            return s.Trim().ToLowerInvariant().Replace(' ', '_');
+            if (!File.Exists(path)) return;
+            var sheet = new Dictionary<(int, int), Sprite>();
+
+            var sprites = AssetDatabase.LoadAllAssetsAtPath(path);
+            foreach (var obj in sprites)
+            {
+                if (!(obj is Sprite s)) continue;
+                if (s.name == Path.GetFileNameWithoutExtension(path)) continue; // root sprite
+
+                // Distinguish root sprites (e.g. "UI-pack_Sprite_2_0") from sub-sprites
+                // (e.g. "UI-pack_Sprite_2_0_3"). Only sub-sprites have the col_row form.
+                var parts = s.name.Split('_');
+                if (parts.Length < 4) continue; // root: UI-pack_Sprite_X_N
+                // Tail must be exactly two numeric segments.
+                if (!int.TryParse(parts[parts.Length - 2], out int col)) continue;
+                if (!int.TryParse(parts[parts.Length - 1], out int row)) continue;
+                sheet[(col, row)] = s;
+            }
+            dict[path] = sheet;
+        }
+
+        private static Sprite Pick(Dictionary<string, Dictionary<(int col, int row), Sprite>> dict,
+            string path, int col, int row)
+        {
+            if (dict.TryGetValue(path, out var sheet) && sheet.TryGetValue((col, row), out var s))
+                return s;
+            return null;
+        }
+
+        private static TMP_FontAsset ResolveDefaultFont()
+        {
+            var font = TMP_Settings.defaultFontAsset;
+            if (font != null && font.atlasTexture != null) return font;
+
+            string[] guids = AssetDatabase.FindAssets("LiberationSans SDF t:TMP_FontAsset");
+            foreach (var g in guids)
+            {
+                var p = AssetDatabase.GUIDToAssetPath(g);
+                var f = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(p);
+                if (f != null && f.atlasTexture != null) return f;
+            }
+            return font;
         }
 
         private static int CountFilledSprites(UITheme_300Mind theme)
@@ -192,8 +246,7 @@ namespace FlowBlast.EditorTools
         }
 
         // -------------------------------------------------------------
-        // Convenience: also expose a top-level menu so anyone can bake
-        // an asset the first time without needing to find it in Project.
+        // Top-level menu
         // -------------------------------------------------------------
         [MenuItem("FlowBlast/UI/Bake 300Mind Theme (auto-fill)")]
         private static void BakeFromMenu()
@@ -210,7 +263,11 @@ namespace FlowBlast.EditorTools
             {
                 var path = AssetDatabase.GUIDToAssetPath(g);
                 var theme = AssetDatabase.LoadAssetAtPath<UITheme_300Mind>(path);
-                if (theme != null) BakeAllReferences(theme);
+                if (theme != null)
+                {
+                    BakeAllReferences(theme);
+                    BakeMaterial(theme);
+                }
             }
         }
     }

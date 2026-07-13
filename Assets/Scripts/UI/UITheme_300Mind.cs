@@ -64,9 +64,10 @@ namespace FlowBlast.UI
         public Sprite backgroundScene;   // full-screen clouds/hills bg
         public Sprite planetDecoration;  // top-left corner ornament
 
-        /// <summary>True if the asset has at least one font and one sprite wired.</summary>
+        /// <summary>True if the asset has a font, a panel sprite, a button sprite, and a UI material.</summary>
         public bool IsBaked =>
             titleFont != null && bodyFont != null && buttonFont != null &&
-            panelBackground != null && buttonNormal != null;
+            panelBackground != null && buttonNormal != null &&
+            defaultUiMaterial != null;
     }
 }
