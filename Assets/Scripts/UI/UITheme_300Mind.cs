@@ -46,6 +46,12 @@ namespace FlowBlast.UI
         public TMP_FontAsset bodyFont;
         public TMP_FontAsset buttonFont;
 
+        // ----- Material -----
+        [Header("Materials")]
+        [Tooltip("Optional UI material applied to every Image/Button built via UIThemeBuilder. " +
+                 "Leave null to use Unity's built-in UI/Default material (works for typical use).")]
+        public Material defaultUiMaterial;
+
         // ----- Palette -----
         [Header("Palette")]
         public Color palettePrimary = new Color(1f, 0.55f, 0.15f, 1f); // orange/yellow

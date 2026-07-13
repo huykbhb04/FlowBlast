@@ -22,6 +22,20 @@ namespace FlowBlast.UI
         // Public API
         // ----------------------------------------------------------------------
 
+        /// <summary>
+        /// Apply the theme's <c>defaultUiMaterial</c> to a <see cref="Graphic"/> if one
+        /// is provided. When the theme has no material, the Graphic keeps whatever
+        /// Unity assigned at construction (the built-in UI/Default material).
+        /// </summary>
+        public static void ApplyThemeMaterial(Graphic graphic, UITheme_300Mind theme)
+        {
+            if (graphic == null) return;
+            if (theme != null && theme.defaultUiMaterial != null)
+            {
+                graphic.material = theme.defaultUiMaterial;
+            }
+        }
+
         public static GameObject BuildPanel(Transform parent, string name, UITheme_300Mind theme,
             Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot,
             Vector2 size, bool useHeader, string headerText)
@@ -38,6 +52,7 @@ namespace FlowBlast.UI
             img.type = theme != null && theme.panelBackground != null ? Image.Type.Sliced : Image.Type.Simple;
             img.color = theme != null ? Color.white : new Color(0.08f, 0.12f, 0.2f, 1f);
             img.raycastTarget = true;
+            ApplyThemeMaterial(img, theme);
 
             if (useHeader && headerText != null)
             {
@@ -70,6 +85,7 @@ namespace FlowBlast.UI
             img.sprite = theme != null ? theme.buttonNormal : null;
             img.type = theme != null && theme.buttonNormal != null ? Image.Type.Sliced : Image.Type.Simple;
             img.color = theme != null ? theme.palettePrimary : new Color(0.2f, 0.4f, 0.8f, 1f);
+            ApplyThemeMaterial(img, theme);
 
             var btn = go.GetComponent<Button>();
             btn.targetGraphic = img;
@@ -113,6 +129,7 @@ namespace FlowBlast.UI
             img.sprite = theme != null ? theme.buttonNormal : null;
             img.type = theme != null && theme.buttonNormal != null ? Image.Type.Sliced : Image.Type.Simple;
             img.color = new Color(1f, 1f, 1f, 0.9f);
+            ApplyThemeMaterial(img, theme);
             var btn = go.GetComponent<Button>();
             btn.targetGraphic = img;
             if (onClick != null) btn.onClick.AddListener(() => onClick());
@@ -130,6 +147,7 @@ namespace FlowBlast.UI
                 iimg.sprite = icon;
                 iimg.preserveAspect = true;
                 iimg.raycastTarget = false;
+                ApplyThemeMaterial(iimg, theme);
             }
             return btn;
         }
@@ -183,6 +201,7 @@ namespace FlowBlast.UI
             img.preserveAspect = true;
             img.raycastTarget = false;
             img.color = theme != null ? theme.paletteAccent : Color.white;
+            ApplyThemeMaterial(img, theme);
             return img;
         }
 
