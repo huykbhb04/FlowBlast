@@ -144,7 +144,6 @@ namespace FlowBlast.EditorTools
             var stateProp = so.FindProperty("_stateAtRuntime");
             if (stateProp != null)
             {
-                var enumType = stateProp.propertyType == SerializedPropertyType.Enum ? null : null;
                 // Set by index: 0 = MainMenu, 1 = Playing (matches InitialUIState declaration).
                 stateProp.enumValueIndex = 0;
             }
