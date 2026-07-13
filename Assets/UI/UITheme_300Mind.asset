@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46a768aae964ef6419cf85c89dbbe111, type: 3}
+  m_Name: UITheme_300Mind
+  m_EditorClassIdentifier: Assembly-CSharp::FlowBlast.UI.UITheme_300Mind
+  panelBackground: {fileID: 5096398773217622274, guid: 7f9865cf6ac20f7468e13d5a5daff8ef, type: 3}
+  panelHeader: {fileID: -2414170809179992679, guid: 7f9865cf6ac20f7468e13d5a5daff8ef, type: 3}
+  buttonNormal: {fileID: -2649234838649908529, guid: 7f9865cf6ac20f7468e13d5a5daff8ef, type: 3}
+  buttonPressed: {fileID: -5821292508612270740, guid: 7f9865cf6ac20f7468e13d5a5daff8ef, type: 3}
+  buttonDisabled: {fileID: -913041324191886979, guid: 7f9865cf6ac20f7468e13d5a5daff8ef, type: 3}
+  progressBarBg: {fileID: 4997227904522372435, guid: 7f9865cf6ac20f7468e13d5a5daff8ef, type: 3}
+  progressBarFill: {fileID: -5349374804670576177, guid: 7f9865cf6ac20f7468e13d5a5daff8ef, type: 3}
+  iconCoin: {fileID: -6842476675931179778, guid: 39e0242329775814891ef673e48ae932, type: 3}
+  iconStar: {fileID: 4702622554581974527, guid: 39e0242329775814891ef673e48ae932, type: 3}
+  iconSettings: {fileID: 7955163695866473430, guid: 39e0242329775814891ef673e48ae932, type: 3}
+  iconLevel: {fileID: -3507657092810895930, guid: 39e0242329775814891ef673e48ae932, type: 3}
+  iconPlay: {fileID: 621479762931534065, guid: 39e0242329775814891ef673e48ae932, type: 3}
+  iconQuit: {fileID: 1978779861393083821, guid: 39e0242329775814891ef673e48ae932, type: 3}
+  iconBack: {fileID: -2083819795252548769, guid: 39e0242329775814891ef673e48ae932, type: 3}
+  iconPause: {fileID: 7239213805003623911, guid: 39e0242329775814891ef673e48ae932, type: 3}
+  iconRestart: {fileID: 3068657089884537881, guid: 39e0242329775814891ef673e48ae932, type: 3}
+  iconMusic: {fileID: -3563399126633484068, guid: 39e0242329775814891ef673e48ae932, type: 3}
+  iconSfx: {fileID: 3940199097848586476, guid: 39e0242329775814891ef673e48ae932, type: 3}
+  iconVibration: {fileID: -3644080066922619187, guid: 39e0242329775814891ef673e48ae932, type: 3}
+  titleFont: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  bodyFont: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  buttonFont: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  palettePrimary: {r: 1, g: 0.55, b: 0.15, a: 1}
+  paletteAccent: {r: 0.18, g: 0.62, b: 0.55, a: 1}
+  paletteText: {r: 0.18, g: 0.1, b: 0.06, a: 1}
+  paletteTitle: {r: 1, g: 1, b: 1, a: 1}
+  backgroundScene: {fileID: 1975565322998962595, guid: 7f9865cf6ac20f7468e13d5a5daff8ef, type: 3}
+  planetDecoration: {fileID: 1526773141237778177, guid: 7f9865cf6ac20f7468e13d5a5daff8ef, type: 3}
