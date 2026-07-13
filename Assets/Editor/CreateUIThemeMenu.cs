@@ -74,18 +74,8 @@ namespace FlowBlast.EditorTools
         // Menu entries
         // -----------------------------------------------------------------
 
-        [MenuItem("FlowBlast/UI/Create 300Mind Fonts")]
+        [MenuItem("FlowBlast/UI/300Mind/Bake All (Fonts + Theme)")]
         public static void CreateFontsMenu()
-        {
-            CreateFonts();
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-            EditorUtility.DisplayDialog("FlowBlast",
-                "300Mind fonts baked into " + FontFolder + "/", "OK");
-        }
-
-        [MenuItem("FlowBlast/UI/Create 300Mind Theme")]
-        public static void CreateThemeMenu()
         {
             CreateFonts();
             CreateTheme();
