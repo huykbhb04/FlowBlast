@@ -11,15 +11,17 @@ namespace FlowBlast.UI.Popup
     {
         [SerializeField] private Button _replayButton;
 
-        private void Awake()
+        protected override void Awake()
         {
             base.Awake();
 
             if (_replayButton != null) _replayButton.onClick.AddListener(Replay);
         }
 
-        private void OnDestroy()
+        protected override void OnDestroy()
         {
+            base.OnDestroy();
+
             if (_replayButton != null) _replayButton.onClick.RemoveListener(Replay);
         }
 

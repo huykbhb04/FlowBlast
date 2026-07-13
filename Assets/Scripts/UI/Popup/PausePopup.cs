@@ -14,7 +14,7 @@ namespace FlowBlast.UI.Popup
         [SerializeField] private Button _continueButton;
         [SerializeField] private Button _homeButton;
 
-        private void Awake()
+        protected override void Awake()
         {
             base.Awake();
 
@@ -23,8 +23,10 @@ namespace FlowBlast.UI.Popup
             if (_homeButton != null) _homeButton.onClick.AddListener(Home);
         }
 
-        private void OnDestroy()
+        protected override void OnDestroy()
         {
+            base.OnDestroy();
+
             if (_replayButton != null) _replayButton.onClick.RemoveListener(Replay);
             if (_continueButton != null) _continueButton.onClick.RemoveListener(Continue);
             if (_homeButton != null) _homeButton.onClick.RemoveListener(Home);

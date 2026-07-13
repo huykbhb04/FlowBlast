@@ -10,15 +10,17 @@ namespace FlowBlast.UI.Popup
     {
         [SerializeField] private Button _nextLevelButton;
 
-        private void Awake()
+        protected override void Awake()
         {
             base.Awake();
 
             if (_nextLevelButton != null) _nextLevelButton.onClick.AddListener(NextLevel);
         }
 
-        private void OnDestroy()
+        protected override void OnDestroy()
         {
+            base.OnDestroy();
+
             if (_nextLevelButton != null) _nextLevelButton.onClick.RemoveListener(NextLevel);
         }
 
