@@ -84,10 +84,10 @@ namespace FlowBlast.EditorTools
 
             EnsureFolder(M_FontFolder);
 
-            // Bake fonts.
-            CreateOneFont("Oswald-Bold",     M_FontRoot + "/Oswald-Bold.ttf",     M_FontFolder + "/Oswald-Bold.asset");
-            CreateOneFont("Oswald-Regular",  M_FontRoot + "/Oswald-Regular.ttf",  M_FontFolder + "/Oswald-Regular.asset");
-            CreateOneFont("Oswald-SemiBold", M_FontRoot + "/Oswald-SemiBold.ttf", M_FontFolder + "/Oswald-SemiBold.asset");
+            // No-op: we don't create Oswald TMP assets here. TMP's CreateFontAsset(Font)
+            // at runtime produces an asset without an atlas texture, which then warns
+            // "Font Atlas Texture missing" when assigned to a text component.
+            // We instead reuse LiberationSans SDF (bundled with TMP Essentials) below.
 
             // Bake theme asset.
             EnsureFolder(M_ThemeFolder);
@@ -99,9 +99,18 @@ namespace FlowBlast.EditorTools
                 AssetDatabase.CreateAsset(theme, M_ThemeAssetPath);
             }
 
-            theme.titleFont  = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(M_FontFolder + "/Oswald-Bold.asset");
-            theme.bodyFont   = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(M_FontFolder + "/Oswald-Regular.asset");
-            theme.buttonFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(M_FontFolder + "/Oswald-SemiBold.asset");
+            // Use TMP's built-in LiberationSans SDF as a safe fallback. It already has
+            // a populated atlas texture + material + shader, so it renders immediately.
+            const string TMP_DEFAULT = "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset";
+            TMP_FontAsset defaultFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(TMP_DEFAULT);
+            if (defaultFont == null)
+            {
+                // Last-ditch: grab whatever TMP says is the default.
+                defaultFont = TMP_Settings.defaultFontAsset;
+            }
+            theme.titleFont  = defaultFont;
+            theme.bodyFont   = defaultFont;
+            theme.buttonFont = defaultFont;
 
             SliceSheetIntoAssets(M_SpriteRoot + "/UI-pack_Sprite_1.png", out var sheet0);
             SliceSheetIntoAssets(M_SpriteRoot + "/UI-pack_Sprite_2.png", out var sheet1);
@@ -132,43 +141,6 @@ namespace FlowBlast.EditorTools
                          "\n\nAssign into UIBootstrap on each scene.";
             Debug.Log("[Create300MindTheme] " + msg);
             EditorUtility.DisplayDialog("FlowBlast", msg, "OK");
-        }
-
-        private static void CreateOneFont(string name, string ttfPath, string outPath)
-        {
-            if (!File.Exists(ttfPath))
-            {
-                Debug.LogWarning("[Create300MindTheme] TTF not found: " + ttfPath);
-                return;
-            }
-            if (AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(outPath) != null)
-            {
-                Debug.Log("[Create300MindTheme] Font already exists: " + outPath);
-                return;
-            }
-
-            Font font = null;
-            try { font = new Font(ttfPath); }
-            catch (System.Exception e)
-            {
-                Debug.LogWarning("[Create300MindTheme] Failed to load TTF '" + ttfPath + "': " + e.Message);
-                return;
-            }
-            if (font == null)
-            {
-                Debug.LogWarning("[Create300MindTheme] Font null for '" + ttfPath + "'.");
-                return;
-            }
-
-            TMP_FontAsset asset = TMP_FontAsset.CreateFontAsset(font);
-            if (asset == null)
-            {
-                Debug.LogWarning("[Create300MindTheme] CreateFontAsset returned null for '" + name + "'.");
-                return;
-            }
-            AssetDatabase.CreateAsset(asset, outPath);
-            AssetDatabase.ImportAsset(outPath);
-            Debug.Log("[Create300MindTheme] Created TMP font: " + outPath);
         }
 
         private static void SliceSheetIntoAssets(string path, out Sprite[,] grid)
