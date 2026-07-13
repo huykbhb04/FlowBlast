@@ -103,17 +103,22 @@ namespace FlowBlast.EditorTools
             theme.bodyFont   = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(M_FontFolder + "/Oswald-Regular.asset");
             theme.buttonFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(M_FontFolder + "/Oswald-SemiBold.asset");
 
-            var sheet0 = LoadSheet(M_SpriteRoot + "/UI-pack_Sprite_1.png");
-            var sheet1 = LoadSheet(M_SpriteRoot + "/UI-pack_Sprite_2.png");
+            SliceSheetIntoAssets(M_SpriteRoot + "/UI-pack_Sprite_1.png", out var sheet0);
+            SliceSheetIntoAssets(M_SpriteRoot + "/UI-pack_Sprite_2.png", out var sheet1);
 
             int sliced = 0;
+            int missing = 0;
             for (int i = 0; i < M_SliceMap.Length; i++)
             {
                 var entry = M_SliceMap[i];
-                Texture2D tex = entry.sheet == 0 ? sheet0 : sheet1;
-                if (tex == null) continue;
-                Sprite sprite = SliceCell(tex, entry.col, entry.row);
-                if (sprite == null) continue;
+                Sprite sprite = entry.sheet == 0 ? sheet0[entry.row, entry.col] : sheet1[entry.row, entry.col];
+                if (sprite == null)
+                {
+                    missing++;
+                    Debug.LogWarning("[Create300MindTheme] No sprite for field '" + entry.field +
+                        "' at sheet " + entry.sheet + " row " + entry.row + " col " + entry.col);
+                    continue;
+                }
                 WriteField(theme, entry.field, sprite);
                 sliced++;
             }
@@ -166,39 +171,77 @@ namespace FlowBlast.EditorTools
             Debug.Log("[Create300MindTheme] Created TMP font: " + outPath);
         }
 
-        private static Texture2D LoadSheet(string path)
+        private static void SliceSheetIntoAssets(string path, out Sprite[,] grid)
         {
+            grid = new Sprite[4, 4];
+            var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (importer == null)
+            {
+                Debug.LogWarning("[Create300MindTheme] No TextureImporter at " + path);
+                return;
+            }
+
             var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
             if (tex == null)
             {
-                Debug.LogWarning("[Create300MindTheme] Sprite sheet not found: " + path);
-                return null;
+                Debug.LogWarning("[Create300MindTheme] LoadAssetAtPath<Texture2D> returned null for " + path);
+                return;
             }
-            var importer = AssetImporter.GetAtPath(path) as TextureImporter;
-            if (importer != null && !importer.isReadable)
-            {
-                importer.isReadable = true;
-                importer.textureType = TextureImporterType.Sprite;
-                importer.spriteImportMode = SpriteImportMode.Single;
-                importer.SaveAndReimport();
-                tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
-            }
-            return tex;
-        }
 
-        private static Sprite SliceCell(Texture2D tex, int col, int row)
-        {
-            if (tex == null || tex.width < 4 || tex.height < 4) return null;
-            int cellW = tex.width / 4;
+            int cellW = tex.width  / 4;
             int cellH = tex.height / 4;
-            int x = col * cellW;
-            int y = row * cellH;
-            var rect = new Rect(x, y, cellW, cellH);
-            var pivot = new Vector2(0.5f, 0.5f);
-            var sprite = Sprite.Create(tex, rect, pivot, 100f, 0,
-                SpriteMeshType.FullRect, Vector4.zero, false);
-            sprite.name = "Slice_" + col + "_" + row;
-            return sprite;
+            if (cellW < 1 || cellH < 1)
+            {
+                Debug.LogWarning("[Create300MindTheme] Texture too small: " + tex.width + "x" + tex.height);
+                return;
+            }
+
+            importer.textureType    = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Multiple;
+            importer.isReadable       = true;
+            importer.mipmapEnabled    = false;
+            importer.filterMode       = FilterMode.Bilinear;
+
+            // IMPORTANT: clear existing sprites first so old single sprite doesn't linger.
+            importer.spritesheet = new SpriteMetaData[0];
+
+            var meta = new SpriteMetaData[16];
+            for (int row = 0; row < 4; row++)
+            {
+                for (int col = 0; col < 4; col++)
+                {
+                    int idx = row * 4 + col;
+                    string spriteName = Path.GetFileNameWithoutExtension(path) + "_" + col + "_" + row;
+                    meta[idx] = new SpriteMetaData
+                    {
+                        name      = spriteName,
+                        rect      = new Rect(col * cellW, (3 - row) * cellH, cellW, cellH), // Unity flips Y
+                        pivot     = new Vector2(0.5f, 0.5f),
+                        border    = new Vector4(cellW * 0.2f, cellH * 0.2f, cellW * 0.2f, cellH * 0.2f), // 9-slice border
+                        alignment = (int)SpriteAlignment.Center,
+                    };
+                }
+            }
+            importer.spritesheet = meta;
+            importer.SaveAndReimport();
+
+            // Now load the actual Sprite assets by name.
+            var allAssets = AssetDatabase.LoadAllAssetsAtPath(path);
+            foreach (var obj in allAssets)
+            {
+                var sp = obj as Sprite;
+                if (sp == null) continue;
+                // name like "UI-pack_Sprite_1_2_1" -> col=2 row=1
+                var parts = sp.name.Split('_');
+                if (parts.Length < 2) continue;
+                int last  = parts.Length - 1;
+                int prev  = parts.Length - 2;
+                int r, c;
+                if (!int.TryParse(parts[last], out r)) continue;
+                if (!int.TryParse(parts[prev], out c)) continue;
+                if (r < 0 || r > 3 || c < 0 || c > 3) continue;
+                grid[r, c] = sp;
+            }
         }
 
         private static void WriteField(UITheme_300Mind theme, string field, Sprite sprite)
