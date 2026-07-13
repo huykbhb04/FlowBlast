@@ -476,22 +476,32 @@ namespace FlowBlast.UI
         /// </summary>
         private void ApplyTheme()
         {
-            if (_theme == null) return;
+            if (_theme == null)
+            {
+                Debug.LogWarning("[UIBootstrap] ApplyTheme skipped: _theme is null. Select UITheme_300Mind.asset in the UIBootstrap inspector.");
+                return;
+            }
 
-            // Apply to every UIPanel-derived controller that the bootstrap or hand-authored
-            // scene has produced.
+            // Re-build every UIPanel-derived controller from the theme. We clear first
+            // (and ignore the previous sentinel check) so a partially-built HUD or a panel
+            // that BuildHUDChildren already populated with raw labels still gets rebuilt.
             var controllers = Object.FindObjectsOfType<UIPanel>();
             foreach (var ctrl in controllers)
             {
                 if (ctrl == null) continue;
-                if (HasThemeSentinel(ctrl.transform)) continue;
-                ctrl.BuildHierarchy(_theme);
+                try { ctrl.BuildHierarchy(_theme); }
+                catch (System.Exception ex)
+                {
+                    Debug.LogError($"[UIBootstrap] BuildHierarchy failed on {ctrl.GetType().Name}: {ex}");
+                }
             }
 
             // Also ensure LevelSelect / Settings panels exist if any controller in the scene
             // requires them (they are not part of the default 5-panel set).
             EnsureOptionalPanel<LevelSelectController>(UIState.LevelSelect);
             EnsureOptionalPanel<SettingsController>(UIState.Settings);
+
+            Debug.Log($"[UIBootstrap] ApplyTheme: rebuilt {controllers.Length} panel(s) with '{_theme.name}'.");
         }
 
         private static bool HasThemeSentinel(Transform t)

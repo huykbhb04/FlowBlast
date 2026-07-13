@@ -81,22 +81,25 @@ namespace FlowBlast.EditorTools
 
             var byPath = BuildSpriteGridIndex();
 
-            // ---- Sprite_2 grid (4x4) ----
-            // Row 0 (y=864): 4 panels; pick column 0 (teal) as the main panel background.
-            theme.panelBackground = Pick(byPath, SpriteSheet2, 0, 0);
-            theme.panelHeader     = Pick(byPath, SpriteSheet2, 0, 1); // headered panel
-            // Row 3 (y=0): 4 rounded buttons (orange, blue, green, yellow). Use orange as default.
-            theme.buttonNormal    = Pick(byPath, SpriteSheet2, 0, 3);
-            theme.buttonPressed   = Pick(byPath, SpriteSheet2, 1, 3);
-            theme.buttonDisabled  = Pick(byPath, SpriteSheet2, 3, 3); // yellow acts as "soft"/alt
-            // Row 2 (y=288): progress bars
-            theme.progressBarBg   = Pick(byPath, SpriteSheet2, 0, 2);
-            theme.progressBarFill = Pick(byPath, SpriteSheet2, 1, 2);
-
-            // ---- Sprite_1 grid (9x9) decorations ----
-            // Background scene: top-left wide banner (row 0 col 0) acts as a cloud background.
-            theme.backgroundScene   = Pick(byPath, SpriteSheet1, 0, 0);
-            theme.planetDecoration  = Pick(byPath, SpriteSheet1, 8, 0); // right-most decoration
+            // ---- Sprite_1 grid (9x9) is the rich, self-contained kit. 9-col layout:
+            //   row 0-1 col 0-1 : large dialog banners / Settings panel
+            //   row 2-4         : rounded buttons (Yes / No / OK / Back etc.)
+            //   row 5-6         : icon-button variants, planet decoration
+            //   row 8 col 0     : clouds background
+            //
+            // Sprite_2 is the simple progress-bar panels; rows are 4x wide instead of 9.
+            //
+            // Pick by grid position, NOT name (all sub-sprites share the auto-generated
+            // name "UI-pack_Sprite_X_col_row").
+            theme.panelBackground   = Pick(byPath, SpriteSheet1, 0, 0); // wide dialog banner
+            theme.panelHeader       = Pick(byPath, SpriteSheet1, 2, 1); // panel with header strip
+            theme.buttonNormal      = Pick(byPath, SpriteSheet1, 0, 3); // primary button tile
+            theme.buttonPressed     = Pick(byPath, SpriteSheet1, 1, 3); // alternate color button
+            theme.buttonDisabled    = Pick(byPath, SpriteSheet1, 3, 3); // muted button tile
+            theme.progressBarBg     = Pick(byPath, SpriteSheet2, 0, 2); // progress panel (4-col sheet)
+            theme.progressBarFill   = Pick(byPath, SpriteSheet2, 1, 2);
+            theme.backgroundScene   = Pick(byPath, SpriteSheet1, 0, 8); // clouds bg
+            theme.planetDecoration  = Pick(byPath, SpriteSheet1, 6, 5); // top-left ornament
 
             // Icons: kit only ships icon-button tiles, no standalone coin/star/etc.
             // Leave them null - UIThemeBuilder falls back to TMP text. Users can override
