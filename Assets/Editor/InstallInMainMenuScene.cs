@@ -1,3 +1,4 @@
+using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -42,14 +43,9 @@ namespace FlowBlast.EditorTools
                 AssetDatabase.CreateFolder("Assets", "Scenes");
             }
 
-            // 1) Open or create scene.
+            // 1) Open existing scene, or create a new one if file does not exist.
             UnityEngine.SceneManagement.Scene scene;
-            var existingScene = AssetDatabase.LoadAssetAtPath<UnityEngine.SceneManagement.Scene>(ScenePath);
-            if (existingScene.IsValid() && existingScene.isLoaded)
-            {
-                scene = existingScene;
-            }
-            else
+            if (File.Exists(ScenePath))
             {
                 scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
                 if (!scene.IsValid())
@@ -58,13 +54,17 @@ namespace FlowBlast.EditorTools
                     EditorSceneManager.SaveScene(scene, ScenePath);
                 }
             }
+            else
+            {
+                scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
+                EditorSceneManager.SaveScene(scene, ScenePath);
+            }
 
             // 2) Canvas.
             var canvas = Object.FindObjectOfType<Canvas>();
             if (canvas == null)
             {
                 var canvasGo = new GameObject("Canvas");
-                scene = canvasGo.scene; // ensure valid
                 canvas = canvasGo.AddComponent<Canvas>();
                 canvas.renderMode = RenderMode.ScreenSpaceOverlay;
                 canvas.sortingOrder = 100;
