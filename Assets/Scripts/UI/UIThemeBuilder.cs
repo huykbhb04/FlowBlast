@@ -152,7 +152,20 @@ namespace FlowBlast.UI
             tmp.alignment = align;
             tmp.enableWordWrapping = true;
             tmp.raycastTarget = false;
-            if (font != null) tmp.font = font;
+            if (font != null && font.atlasTexture != null)
+            {
+                tmp.font = font;
+            }
+            else
+            {
+                // Fallback to TMP's built-in font when the supplied asset has no atlas
+                // (e.g. CreateFontAsset at runtime never populated glyphs).
+                var fallback = TMP_Settings.defaultFontAsset;
+                if (fallback != null && fallback.atlasTexture != null)
+                {
+                    tmp.font = fallback;
+                }
+            }
             return tmp;
         }
 
