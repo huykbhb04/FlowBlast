@@ -61,6 +61,22 @@ namespace FlowBlast.Gameplay.Grid
         public Vector3 BoardOrigin = Vector3.zero;
         public bool BuildBackground = true;
 
+        [Header("Conveyor")]
+        [Min(0.1f)] public float BlockSpeed = 3f;
+        [Min(0.1f)] public float BlocksPerSecond = 1f;
+        [Min(1)] public int BlocksPerCluster = 20;
+
+        [Header("Slot & Target")]
+        [Range(1, 8)] public int SlotCount = 4;
+        public float SlotCapacity = 100f;
+
+        [Header("Block Sequence")]
+        public bool DeriveBlockSequenceFromGrid = true;
+        public List<BoxColor> BlockSequenceOverride;
+
+        [Header("Target")]
+        public int TargetBoxCount = 0;
+
         public CellDataEntry GetCell(int row, int col)
         {
             if (row < 0 || row >= Rows || col < 0 || col >= Cols)
@@ -258,6 +274,43 @@ namespace FlowBlast.Gameplay.Grid
                     Cells[i] = new CellDataEntry(CellType.Box, c);
                 }
             }
+        }
+
+        public Dictionary<BoxColor, int> GetBoxCountByColor()
+        {
+            var counts = new Dictionary<BoxColor, int>();
+            foreach (BoxColor c in System.Enum.GetValues(typeof(BoxColor)))
+                counts[c] = 0;
+
+            foreach (var cell in Cells)
+            {
+                if (cell.Type == CellType.Box)
+                    counts[cell.Color]++;
+            }
+            return counts;
+        }
+
+        public List<BoxColor> BuildBlockSequence()
+        {
+            if (BlockSequenceOverride != null && BlockSequenceOverride.Count > 0)
+                return new List<BoxColor>(BlockSequenceOverride);
+
+            var counts = GetBoxCountByColor();
+            var sequence = new List<BoxColor>();
+            foreach (var kvp in counts)
+            {
+                for (int i = 0; i < kvp.Value; i++)
+                    sequence.Add(kvp.Key);
+            }
+            return sequence;
+        }
+
+        public int GetTotalBoxCount()
+        {
+            int total = 0;
+            foreach (var cell in Cells)
+                if (cell.Type == CellType.Box) total++;
+            return total;
         }
     }
 }
