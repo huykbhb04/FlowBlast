@@ -212,7 +212,16 @@ namespace FlowBlast.Gameplay.Conveyor
                 if (conveyors[i] != null) conveyors[i].MarkColorDone(color);
             }
             if (_splineConveyor != null) _splineConveyor.MarkColorDone(color);
+
+            // Fire public event so listeners (HUD, WinPopup, etc.) can react.
+            OnColorCompleted?.Invoke(color);
         }
+
+        /// <summary>
+        /// Raised every time a color's balls are fully consumed and the conveyor
+        /// enters drain mode for that color.
+        /// </summary>
+        public static event System.Action<BoxColor> OnColorCompleted;
 
         private void FlyBoxUpAndClearSlot(BoxSlot slot)
         {
