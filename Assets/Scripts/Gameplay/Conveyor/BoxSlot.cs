@@ -24,12 +24,26 @@ namespace FlowBlast.Gameplay.Conveyor
                  "If null, falls back to AnchorPoint position.")]
         public Transform IdlePoint;
 
+        [Header("Pooling")]
+        [Tooltip("BoxPool to return boxes to when they complete. Auto-resolves if not assigned.")]
+        [SerializeField] private BoxPool _boxPool;
+
         [Header("State")]
         [SerializeField] private GameObject _currentBox;
         [SerializeField] private BoxContainer _container;
 
         public GameObject CurrentBox => _currentBox;
         public BoxContainer Container => _container;
+
+        public BoxPool BoxPool
+        {
+            get
+            {
+                if (_boxPool != null) return _boxPool;
+                _boxPool = FindObjectOfType<BoxPool>();
+                return _boxPool;
+            }
+        }
 
         public bool IsEmpty => _currentBox == null;
         public bool IsOccupied => _currentBox != null;
@@ -86,11 +100,36 @@ namespace FlowBlast.Gameplay.Conveyor
             if (_container != null) _container.OnCompleted -= BoxSlot_HandleContainerCompleted;
         }
 
+        /// <summary>
+        /// Clear the slot and return the box to the BoxPool if pooling is configured.
+        /// This is safe to call even if the box was already returned to the pool
+        /// (e.g. when FlyBoxUpAndClearSlot already called PlayAndClearAndReturnToPool).
+        /// </summary>
         public void ClearSlot()
         {
             if (_currentBox != null)
-                Destroy(_currentBox);
-            _currentBox = null;
+            {
+                // If the box has already been returned to the pool and deactivated,
+                // just null out the reference. Otherwise, return it to the pool
+                // (or fall back to Destroy if no pool is configured).
+                if (!_currentBox.activeSelf && BoxPool != null)
+                {
+                    // Box is already pooled; just clear the reference.
+                }
+                else
+                {
+                    var mover = _currentBox.GetComponent<BoxTapMover>();
+                    if (mover != null && BoxPool != null)
+                    {
+                        BoxPool.Despawn(mover);
+                    }
+                    else
+                    {
+                        Destroy(_currentBox);
+                    }
+                }
+                _currentBox = null;
+            }
             if (_container != null)
             {
                 _container.Progress = 0f;
@@ -100,7 +139,6 @@ namespace FlowBlast.Gameplay.Conveyor
 
         public BoxContainer GetContainer()
         {
-            if (_container == null) _container = new BoxContainer();
             return _container;
         }
     }

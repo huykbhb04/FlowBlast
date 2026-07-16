@@ -72,6 +72,15 @@ namespace FlowBlast.Gameplay.Grid
                       $"- {sel} selectable boxes, {trapped} trapped. Box animation ready.");
         }
 
+        /// <summary>
+        /// Public overload used by LevelLoader to load a specific level config.
+        /// </summary>
+        public void LoadMapFromSO(GridMapDataSO config)
+        {
+            mapDataSO = config;
+            LoadMapFromSO();
+        }
+
         private static int CountTrappedBoxes(GridMapData map)
         {
             int n = 0;

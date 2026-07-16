@@ -57,6 +57,15 @@ namespace FlowBlast.Gameplay.Conveyor
         }
 
         /// <summary>
+        /// Get the BlockPool for the given color from the SplineConveyor.
+        /// Returns null if pooling is not configured.
+        /// </summary>
+        private BlockPool FindPoolForColor(BoxColor color)
+        {
+            return _splineConveyor != null ? _splineConveyor.GetPoolForColor(color) : null;
+        }
+
+        /// <summary>
         /// Called by the top conveyor when a top block reaches the gate.
         /// </summary>
         /// <param name="topBlock">The top block GameObject that just arrived.</param>
@@ -86,6 +95,19 @@ namespace FlowBlast.Gameplay.Conveyor
                 .OrderBy(s => s.GetContainer().Progress)
                 .ThenBy(s => s.SlotIndex)
                 .FirstOrDefault();
+
+            if (_logEvents)
+            {
+                string slotInfo = slot != null
+                    ? $"slot{slot.SlotIndex}={slot.GetContainer().RequiredColor}(p={slot.GetContainer().Progress:F0}%)"
+                    : "NO_SLOT";
+                var occupiedSlots = _bottomRay.Slots
+                    .Where(s => s != null && s.IsOccupied && !s.IsCompleted && s.GetContainer() != null)
+                    .Select(s => $"slot{s.SlotIndex}:{s.GetContainer().RequiredColor}")
+                    .ToArray();
+                Debug.Log($"{nameof(GateMatcher)}: top ball {topColor} at gate, matched {slotInfo}. " +
+                          $"Occupied slots: [{string.Join(", ", occupiedSlots)}]");
+            }
 
             // If every slot of this color has already been completed, dissolve the
             // block right here at the gate. This is how we drain the conveyor cleanly
@@ -120,14 +142,18 @@ namespace FlowBlast.Gameplay.Conveyor
 
                 // Stop the top conveyor from advancing this block further while we dissolve it.
                 var handle = topBlock.GetComponent<BlockHandle>();
-                if (handle != null)
-                {
-                    handle.MarkConsumed();
-                }
+                if (handle != null) handle.MarkConsumed();
 
+                var colored = topBlock.GetComponent<ConveyorColoredBlock>();
+                var pool = FindPoolForColor(topColor);
                 var dissolve = topBlock.GetComponent<BlockDissolveEffect>();
                 if (dissolve == null) dissolve = topBlock.AddComponent<BlockDissolveEffect>();
-                dissolve.PlayAndDestroy();
+
+                // Prefer pool-aware return; fall back to plain Destroy if no pool configured.
+                if (pool != null && colored != null)
+                    dissolve.PlayAndReturnToPool(pool, colored, null);
+                else
+                    dissolve.PlayAndDestroy();
 
                 // If this hit completed the container -> fly box up and free slot.
                 if (container.IsCompleted)
@@ -172,9 +198,15 @@ namespace FlowBlast.Gameplay.Conveyor
             var handle = topBlock.GetComponent<BlockHandle>();
             if (handle != null) handle.MarkConsumed();
 
+            var colored = topBlock.GetComponent<ConveyorColoredBlock>();
+            var pool = FindPoolForColor(topColor);
             var dissolve = topBlock.GetComponent<BlockDissolveEffect>();
             if (dissolve == null) dissolve = topBlock.AddComponent<BlockDissolveEffect>();
-            dissolve.PlayAndDestroy();
+
+            if (pool != null && colored != null)
+                dissolve.PlayAndReturnToPool(pool, colored, null);
+            else
+                dissolve.PlayAndDestroy();
         }
 
         /// <summary>
@@ -236,14 +268,29 @@ namespace FlowBlast.Gameplay.Conveyor
 
             GameObject boxObj = slot.CurrentBox;
 
+            // Resolve BoxPool from BoxSlot (auto-find if not assigned).
+            var boxPool = slot.BoxPool;
+
             // Add a fly-up animator on the fly if the prefab didn't ship with one.
             var animator = boxObj.GetComponent<BoxExitAnimator>();
             if (animator == null) animator = boxObj.AddComponent<BoxExitAnimator>();
 
-            animator.PlayAndClear(() =>
+            // Add BoxTapMover if missing (needed for pool reset state).
+            var mover = boxObj.GetComponent<BoxTapMover>();
+            if (mover == null) mover = boxObj.AddComponent<BoxTapMover>();
+
+            // Prefer pool-aware exit animation.
+            if (boxPool != null && mover != null)
             {
-                _bottomRay.OnSlotCompleted(slot);
-            });
+                animator.PlayAndClearAndReturnToPool(
+                    () => _bottomRay.OnSlotCompleted(slot),
+                    boxPool,
+                    mover);
+            }
+            else
+            {
+                animator.PlayAndClear(() => _bottomRay.OnSlotCompleted(slot));
+            }
         }
     }
 }

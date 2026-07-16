@@ -1,5 +1,6 @@
 using UnityEngine;
 using FlowBlast.Gameplay.Grid;
+using FlowBlast.Gameplay.Conveyor;
 
 namespace FlowBlast.Gameplay
 {

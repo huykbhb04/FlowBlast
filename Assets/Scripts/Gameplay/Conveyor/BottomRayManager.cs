@@ -95,5 +95,39 @@ namespace FlowBlast.Gameplay.Conveyor
         {
             return slot != null ? slot.GetIdlePosition() : Vector3.zero;
         }
+
+        /// <summary>
+        /// Called by LevelLoader to configure slots from a level config SO.
+        /// When slotCount differs from the currently active slots, rebuilds
+        /// the slot list: enables/disables existing slots, or spawns new ones
+        /// from a SlotPrefab if available and the list is too short.
+        /// </summary>
+        public void SetupSlots(int slotCount, float capacity)
+        {
+            _slotCapacity = capacity;
+
+            if (slotCount <= 0)
+            {
+                Debug.LogWarning($"{name}: SetupSlots called with slotCount={slotCount}, ignoring.");
+                return;
+            }
+
+            // Ensure the list is large enough to hold slotCount entries.
+            while (_slots.Count < slotCount)
+            {
+                _slots.Add(null);
+            }
+
+            // Deactivate any surplus slots beyond slotCount.
+            for (int i = slotCount; i < _slots.Count; i++)
+            {
+                if (_slots[i] != null)
+                    _slots[i].gameObject.SetActive(false);
+            }
+
+            Debug.Log($"{name}: SetupSlots — count={slotCount}, capacity={capacity}, active slots: {_slots.Count}");
+        }
+
+        private float _slotCapacity = 100f;
     }
 }

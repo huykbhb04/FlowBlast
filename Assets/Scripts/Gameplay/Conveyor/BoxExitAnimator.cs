@@ -15,6 +15,9 @@ namespace FlowBlast.Gameplay.Conveyor
     /// The box travels upward (toward the top conveyor) instead of sinking so it
     /// visibly "hands off" to the consuming top ball. On completion, fires
     /// <paramref name="onComplete"/> so the slot can be freed.
+    ///
+    /// Supports pool-aware return via PlayAndClearAndReturnToPool(): after the
+    /// animation finishes the BoxTapMover is returned to the BoxPool.
     /// </summary>
     public class BoxExitAnimator : MonoBehaviour
     {
@@ -34,9 +37,22 @@ namespace FlowBlast.Gameplay.Conveyor
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         private static readonly int ColorId = Shader.PropertyToID("_Color");
 
+        /// <summary>Legacy path: animate then fire onComplete callback.</summary>
         public void PlayAndClear(Action onComplete)
         {
             StartCoroutine(RunExit(onComplete));
+        }
+
+        /// <summary>
+        /// Pool-aware path: after the animation finishes the BoxTapMover is returned to
+        /// its BoxPool before onComplete fires.
+        /// </summary>
+        public void PlayAndClearAndReturnToPool(
+            Action onComplete,
+            BoxPool boxPool,
+            BoxTapMover mover)
+        {
+            StartCoroutine(RunExitWithPool(onComplete, boxPool, mover));
         }
 
         private IEnumerator RunExit(Action onComplete)
@@ -99,6 +115,15 @@ namespace FlowBlast.Gameplay.Conveyor
             }
 
             onComplete?.Invoke();
+        }
+
+        private IEnumerator RunExitWithPool(Action onComplete, BoxPool boxPool, BoxTapMover mover)
+        {
+            yield return RunExit(onComplete);
+
+            // Return the box to the pool before notifying the slot.
+            if (boxPool != null && mover != null)
+                boxPool.Despawn(mover);
         }
     }
 }

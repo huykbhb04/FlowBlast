@@ -87,6 +87,20 @@ namespace FlowBlast.Gameplay.Conveyor
             // hook into every newly assigned BoxContainer. No need to re-subscribe here.
         }
 
+        /// <summary>
+        /// Called by LevelLoader to explicitly set the total box count for this level.
+        /// Switches to Manual mode so the HUD uses the provided value instead of
+        /// auto-counting from the grid.
+        /// </summary>
+        public void Bind(int targetTotal)
+        {
+            totalSource = TotalSourceMode.Manual;
+            manualTotal = Mathf.Max(targetTotal, 1);
+            _currentCount = 0;
+            _total = manualTotal;
+            Refresh();
+        }
+
         private void OnDisable()
         {
             // BoxSlot handles its own subscription lifetime via OnDestroy + AssignBox.
