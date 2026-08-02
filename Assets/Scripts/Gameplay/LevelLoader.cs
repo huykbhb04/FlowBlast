@@ -1,4 +1,3 @@
-using System.Collections;
 using UnityEngine;
 using FlowBlast.Core;
 using FlowBlast.Gameplay.Grid;
@@ -16,6 +15,7 @@ namespace FlowBlast.Gameplay
     {
         [Header("Subsystem References")]
         [SerializeField] private GridManager _gridManager;
+        [SerializeField] private RuntimeBoardBuilder _boardBuilder;
         [SerializeField] private SplineConveyor _conveyor;
         [SerializeField] private BottomRayManager _bottomRayManager;
         [SerializeField] private GameProgressHUD _hud;
@@ -68,6 +68,15 @@ namespace FlowBlast.Gameplay
                 Debug.LogWarning("[LevelLoader] GridManager not assigned.");
             }
 
+            if (_boardBuilder != null)
+            {
+                _boardBuilder.Build(config);
+            }
+            else
+            {
+                Debug.LogWarning("[LevelLoader] RuntimeBoardBuilder not assigned. Board will not be generated from GridMapDataSO.");
+            }
+
             if (_conveyor != null)
                 _conveyor.SetupFromConfig(config);
             else
@@ -90,33 +99,7 @@ namespace FlowBlast.Gameplay
             if (_winTrigger != null) _winTrigger.ResetTrigger();
             if (_loseTrigger != null) _loseTrigger.ResetTrigger();
 
-            SyncSceneBoxes(config);
-            StartCoroutine(SyncSceneBoxesNextFrame(config));
-
             Debug.Log($"[LevelLoader] Loaded level: {config.MapName} (index={config.LevelIndex}, target={target})");
-        }
-
-        private IEnumerator SyncSceneBoxesNextFrame(GridMapDataSO config)
-        {
-            yield return null;
-            SyncSceneBoxes(config);
-        }
-
-        private void SyncSceneBoxes(GridMapDataSO config)
-        {
-            BoxTapMover[] boxMovers = FindObjectsOfType<BoxTapMover>();
-            for (int i = 0; i < boxMovers.Length; i++)
-            {
-                BoxTapMover boxMover = boxMovers[i];
-                if (boxMover == null) continue;
-                if (!boxMover.TryGetGridPosition(out int row, out int col)) continue;
-
-                CellDataEntry cell = config.GetCell(row, col);
-                if (cell.Type != CellType.Box) continue;
-
-                boxMover.SetVisualPalette(config.VisualPalette);
-                boxMover.ApplyBoxColor(cell.Color);
-            }
         }
 
         public void ReloadLevel()

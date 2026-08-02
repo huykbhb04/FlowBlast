@@ -24,6 +24,7 @@ namespace FlowBlast.Gameplay.Grid
     {
         [Header("Grid Map")]
         [SerializeField] private GridMapDataSO mapDataSO;
+        [SerializeField] private bool loadMapOnAwake;
 
         [Header("Conveyor Animation")]
         [SerializeField] private Transform receivePoint;
@@ -50,7 +51,10 @@ namespace FlowBlast.Gameplay.Grid
 
         private void Awake()
         {
-            LoadMapFromSO();
+            if (loadMapOnAwake)
+            {
+                LoadMapFromSO();
+            }
         }
 
         private void Update()
@@ -91,6 +95,17 @@ namespace FlowBlast.Gameplay.Grid
                     if (cell != null && cell.IsTrapped) n++;
                 }
             return n;
+        }
+
+        public void RemoveBoxFromGrid(int row, int col)
+        {
+            if (gridMap == null)
+            {
+                return;
+            }
+
+            gridMap.RemoveBox(row, col);
+            Pathfinding.MarkSelectableByCeiling(gridMap);
         }
 
         /// <summary>
@@ -192,6 +207,11 @@ namespace FlowBlast.Gameplay.Grid
 
         public GridMapData GetGridMap() => gridMap;
         public BoxVisualPaletteSO GetBoxVisualPalette() => mapDataSO != null ? mapDataSO.VisualPalette : null;
+        public Transform ReceivePoint => receivePoint;
+        public SplineContainer BottomSpline => bottomSpline;
+        public int BottomSplineIndex => bottomSplineIndex;
+        public float MoveSpeed => moveSpeed;
+        public bool LoopSpline => loopSpline;
         public List<GridCell> GetSelectableBoxes() =>
             gridMap != null ? Pathfinding.GetSelectableBoxes(gridMap) : new List<GridCell>();
         public bool HasSelectableBoxes() => GetSelectableBoxes().Count > 0;

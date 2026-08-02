@@ -93,6 +93,7 @@ namespace FlowBlast.Gameplay.Conveyor
         [Header("Auto-sync with GridMapDataSO")]
         [Tooltip("If true, on Start() pull AvailableColors from GridManager and spawn one block per color (overrides blockPrefabs).")]
         [SerializeField] private bool autoSyncFromGridManager = true;
+        [SerializeField] private bool spawnOnStart;
 
         [Header("Cluster Wrap Guard")]
         [Tooltip("If true, blocksPerCluster is capped automatically so each cluster fits within 1/paletteSize of the spline. " +
@@ -186,12 +187,6 @@ namespace FlowBlast.Gameplay.Conveyor
 
             ResolveVisualPalette();
             ResolveBlockPrefabs();
-            if (blockPrefabs.Count == 0 || blockPrefabs[0].Prefab == null)
-            {
-                Debug.LogError($"{name}: No valid block prefabs resolved (need at least one entry with a Prefab).");
-                enabled = false;
-                return;
-            }
 
             // SAFETY: Force a strict clustered layout. The top conveyor must NEVER show
             // interleaved colors to the player, otherwise the gate match logic looks broken.
@@ -205,6 +200,18 @@ namespace FlowBlast.Gameplay.Conveyor
             if (gateMatcher == null) gateMatcher = FindObjectOfType<GateMatcher>();
 
             BuildSplineCache();
+
+            if (!spawnOnStart && _pendingConfig == null)
+            {
+                return;
+            }
+
+            if (blockPrefabs.Count == 0 || blockPrefabs[0].Prefab == null)
+            {
+                Debug.LogError($"{name}: No valid block prefabs resolved (need at least one entry with a Prefab).");
+                enabled = false;
+                return;
+            }
 
             // If LevelLoader called SetupFromConfig() before Start(), honour that config
             // instead of the Inspector defaults.

@@ -101,6 +101,7 @@ GameObject:
   - component: {fileID: 2178392777078629526}
   - component: {fileID: 8417000519877129815}
   - component: {fileID: 7661970842363111658}
+  - component: {fileID: 6269457288413006132}
   m_Layer: 0
   m_Name: Box
   m_TagString: Untagged
@@ -136,8 +137,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 418be9d6ca3124549b73c48df3c35158, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FlowBlast.Gameplay.Conveyor.BoxTapMover
-  boxColor: 0
-  boxVisualView: {fileID: 0}
+  boxVisualView: {fileID: 6269457288413006132}
   visualPalette: {fileID: 0}
   splineContainer: {fileID: 0}
   splineIndex: 0
@@ -170,3 +170,17 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.89315975, y: 0.56875426, z: 0.7940899}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &6269457288413006132
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9168233812504392444}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbc8e71ab6545a44e8f1191f0885e83a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FlowBlast.Gameplay.Conveyor.BoxVisualView
+  _renderer: {fileID: 6145658279069006536}
+  _palette: {fileID: 0}

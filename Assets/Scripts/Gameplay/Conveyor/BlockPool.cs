@@ -12,7 +12,7 @@ namespace FlowBlast.Gameplay.Conveyor
     ///
     /// This pool manages its own GameObject queue (independent of ComponentPool)
     /// so that it can handle prefabs that don't carry ConveyorColoredBlock at
-    /// edit-time — we AddComponent at spawn-time on the cloned instance.
+    /// edit-time. Production prefabs should include ConveyorColoredBlock already.
     ///
     /// Pool lifecycle:
     ///   Warm()      -> pre-instantiate WarmSize inactive instances
@@ -25,8 +25,7 @@ namespace FlowBlast.Gameplay.Conveyor
         [Tooltip("Which BoxColor this pool manages. Must match one entry in SplineConveyor's blockPrefabs list.")]
         [SerializeField] private BoxColor _color = BoxColorUtility.DefaultColor;
 
-        [Tooltip("GameObject prefab to instantiate when the pool needs to grow. " +
-                 "May or may not have ConveyorColoredBlock — we handle that at spawn time.")]
+        [Tooltip("GameObject prefab to instantiate when the pool needs to grow. Production prefabs should include ConveyorColoredBlock.")]
         [SerializeField] private GameObject _prefab;
 
         [SerializeField] private BoxVisualPaletteSO _visualPalette;
@@ -173,17 +172,14 @@ namespace FlowBlast.Gameplay.Conveyor
                 baseName = baseName.Replace("_" + c, "");
             go.name = baseName + "_" + _color;
 
-            // If the prefab doesn't carry ConveyorColoredBlock (e.g. plain box.prefab),
-            // add it here so the pool is always guaranteed to return valid blocks.
-            var cc = go.GetComponent<ConveyorColoredBlock>();
-            if (cc == null)
+            ConveyorColoredBlock coloredBlock = go.GetComponent<ConveyorColoredBlock>();
+            if (coloredBlock == null)
             {
-                cc = go.AddComponent<ConveyorColoredBlock>();
-                cc.SetColor(_color);
-                Debug.Log($"[BlockPool<{_color}>] AddComponent<ConveyorColoredBlock> to instance '{go.name}'.");
+                coloredBlock = go.AddComponent<ConveyorColoredBlock>();
             }
 
-            return cc;
+            coloredBlock.SetColor(_color);
+            return coloredBlock;
         }
 
         /// <summary>

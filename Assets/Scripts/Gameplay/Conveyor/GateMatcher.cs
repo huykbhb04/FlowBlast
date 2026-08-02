@@ -275,9 +275,7 @@ namespace FlowBlast.Gameplay.Conveyor
             var animator = boxObj.GetComponent<BoxExitAnimator>();
             if (animator == null) animator = boxObj.AddComponent<BoxExitAnimator>();
 
-            // Add BoxTapMover if missing (needed for pool reset state).
-            var mover = boxObj.GetComponent<BoxTapMover>();
-            if (mover == null) mover = boxObj.AddComponent<BoxTapMover>();
+            BoxTapMover mover = boxObj.GetComponent<BoxTapMover>();
 
             // Prefer pool-aware exit animation.
             if (boxPool != null && mover != null)
