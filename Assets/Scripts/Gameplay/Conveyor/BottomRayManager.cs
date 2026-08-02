@@ -52,7 +52,23 @@ namespace FlowBlast.Gameplay.Conveyor
         /// Place a Box GameObject into the slot nearest to the receive point.
         /// Returns the slot it was placed into, or null if no slot available.
         /// </summary>
+        public BoxSlot PlaceBox(BoxTapMover boxMover, BoxColor color)
+        {
+            if (boxMover == null)
+            {
+                Debug.LogError($"{nameof(BottomRayManager)}: PlaceBox called with null box mover.");
+                return null;
+            }
+
+            return PlaceBox(boxMover.gameObject, color, boxMover.ProgressDisplay);
+        }
+
         public BoxSlot PlaceBox(GameObject box, BoxColor color)
+        {
+            return PlaceBox(box, color, null);
+        }
+
+        private BoxSlot PlaceBox(GameObject box, BoxColor color, BoxProgressDisplay progressDisplay)
         {
             if (box == null)
             {
@@ -67,7 +83,7 @@ namespace FlowBlast.Gameplay.Conveyor
                 return null;
             }
 
-            slot.AssignBox(box, color);
+            slot.AssignBox(box, color, progressDisplay);
             // Snap box to slot idle position immediately; BoxTapMover handles smooth flight separately.
             box.transform.position = slot.GetIdlePosition();
             Debug.Log($"[BottomRayManager] Placed {color} box into slot {slot.SlotIndex}. " +

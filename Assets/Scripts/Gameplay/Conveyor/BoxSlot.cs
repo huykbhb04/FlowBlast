@@ -56,7 +56,7 @@ namespace FlowBlast.Gameplay.Conveyor
             return transform.position;
         }
 
-        public void AssignBox(GameObject box, BoxColor color)
+        public void AssignBox(GameObject box, BoxColor color, BoxProgressDisplay progressDisplay)
         {
             _currentBox = box;
 
@@ -72,18 +72,22 @@ namespace FlowBlast.Gameplay.Conveyor
 
             _container.OnCompleted += BoxSlot_HandleContainerCompleted;
 
-            // Attach a progress label so the player sees how full this box is.
-            // The label is hidden by default and only shows once a matching
-            // top ball hits the gate (first progress > 0).
             if (box != null)
             {
-                var display = box.GetComponent<BoxProgressDisplay>();
-                if (display == null) display = box.AddComponent<BoxProgressDisplay>();
-                display.Bind(_container);
+                if (progressDisplay != null)
+                {
+                    progressDisplay.Bind(_container);
+                }
+                else
+                {
+                    Debug.LogWarning($"[BoxSlot] Box '{box.name}' is missing BoxProgressDisplay reference. Assign it on BoxTapMover in the box prefab.");
+                }
 
-                // Let HUD rebind its event handlers for this fresh container.
-                var hud = GameProgressHUD.Instance;
-                if (hud != null) hud.RebindContainer(_container);
+                GameProgressHUD hud = GameProgressHUD.Instance;
+                if (hud != null)
+                {
+                    hud.RebindContainer(_container);
+                }
             }
         }
 

@@ -2636,8 +2636,7 @@ MonoBehaviour:
   _winTrigger: {fileID: 1900000002}
   _loseTrigger: {fileID: 1076666213}
   _defaultLevel: {fileID: 11400000, guid: 75c7a5e67049edc46969c379ebf5bfa3, type: 2}
-  _allLevels:
-  - {fileID: 11400000, guid: 75c7a5e67049edc46969c379ebf5bfa3, type: 2}
+  _allLevels: []
 --- !u!4 &903066421
 Transform:
   m_ObjectHideFlags: 0

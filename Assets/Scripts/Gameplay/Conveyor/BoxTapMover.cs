@@ -12,6 +12,7 @@ namespace FlowBlast.Gameplay.Conveyor
         [Header("Box Visual")]
         [SerializeField] private BoxVisualView boxVisualView;
         [SerializeField] private BoxVisualPaletteSO visualPalette;
+        [SerializeField] private BoxProgressDisplay progressDisplay;
 
         [Header("Spline")]
         [SerializeField] private SplineContainer splineContainer;
@@ -26,7 +27,7 @@ namespace FlowBlast.Gameplay.Conveyor
         [SerializeField] private bool loop = true;
 
         [Header("Rotation")]
-        [SerializeField] private bool rotateToDirection = true;
+        [SerializeField] private bool rotateToDirection = false;
         [SerializeField] private Vector3 rotationOffset = Vector3.zero;
 
         [Header("Input")]
@@ -119,6 +120,8 @@ namespace FlowBlast.Gameplay.Conveyor
         {
             visualPalette = palette;
         }
+
+        public BoxProgressDisplay ProgressDisplay => progressDisplay;
 
         public bool TryGetGridPosition(out int row, out int col)
         {
@@ -327,7 +330,7 @@ namespace FlowBlast.Gameplay.Conveyor
             BoxSlot assignedSlot = null;
             if (ray != null)
             {
-                assignedSlot = ray.PlaceBox(gameObject, currentBoxColor);
+                assignedSlot = ray.PlaceBox(this, currentBoxColor);
                 if (assignedSlot == null)
                 {
                     Debug.Log($"[BoxTapMover] '{name}' cannot move - all ray slots occupied.");
