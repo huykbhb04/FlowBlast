@@ -1,13 +1,15 @@
+using FlowBlast.Core;
 using FlowBlast.Managers;
 using UnityEngine;
 
 namespace FlowBlast.UI.Popup
 {
     /// <summary>
-    /// Dev-only hotkeys to test popup system without wiring gameplay triggers.
+    /// Dev-only hotkeys to test popup system via GameStateMachine.
     /// Attach to any GameObject in the scene (commonly the PopupManager itself).
-    /// All inputs use the legacy Input system (Input.GetKeyDown) — switch to the
-    /// new Input System package by replacing with Keyboard.current.* if needed.
+    ///
+    /// All inputs go through GameStateMachine so state transitions are consistent
+    /// and popups are never spawned in duplicate.
     /// </summary>
     public class PopupDemoTriggers : MonoBehaviour
     {
@@ -15,51 +17,59 @@ namespace FlowBlast.UI.Popup
         [SerializeField] private KeyCode _pauseKey = KeyCode.Escape;
         [SerializeField] private KeyCode _winKey = KeyCode.Space;
         [SerializeField] private KeyCode _loseKey = KeyCode.L;
-        [SerializeField] private KeyCode _closeTopKey = KeyCode.Escape;
         [SerializeField] private KeyCode _closeAllKey = KeyCode.C;
-
-        [Header("Behaviour")]
-        [Tooltip("If true, the same pause key will toggle: open if closed, close-top if open.")]
-        [SerializeField] private bool _pauseKeyToggles = true;
 
         private void Update()
         {
-            PopupManager pm = PopupManager.Instance;
-            if (pm == null) return;
-
-            // Pause: either show, or close-top if already open.
+            // Pause toggle: routes through GameStateMachine to avoid duplicate popups.
             if (Input.GetKeyDown(_pauseKey))
             {
-                if (_pauseKeyToggles && pm.IsAnyPopupOpen)
+                if (GameStateMachine.Instance != null)
                 {
-                    pm.CloseTopPopup();
+                    GameStateMachine.Instance.TogglePause();
                 }
                 else
                 {
-                    pm.OpenPausePopup();
+                    // Fallback: toggle via PopupManager directly (no FSM in scene).
+                    PopupManager pm = PopupManager.Instance;
+                    if (pm != null)
+                    {
+                        if (pm.IsAnyPopupOpen) pm.CloseTopPopup();
+                        else pm.Show(PopupId.Pause);
+                    }
                 }
             }
 
-            // Win / Lose: only fire when no popup is currently open.
-            if (Input.GetKeyDown(_winKey) && !pm.IsAnyPopupOpen)
+            // Win: only during Playing state.
+            if (Input.GetKeyDown(_winKey))
             {
-                pm.OpenWinPopup();
+                if (GameStateMachine.Instance != null && GameStateMachine.Instance.IsPlaying)
+                {
+                    GameStateMachine.Instance.TransitionTo(GameState.Win);
+                }
             }
 
-            if (Input.GetKeyDown(_loseKey) && !pm.IsAnyPopupOpen)
+            // Lose: only during Playing state.
+            if (Input.GetKeyDown(_loseKey))
             {
-                pm.OpenLosePopup();
+                if (GameStateMachine.Instance != null && GameStateMachine.Instance.IsPlaying)
+                {
+                    GameStateMachine.Instance.TransitionTo(GameState.Lose);
+                }
             }
 
-            // Close-top / Close-all.
-            if (Input.GetKeyDown(_closeTopKey) && _closeTopKey != _pauseKey)
+            // Close all: escape hatch.
+            if (Input.GetKeyDown(_closeAllKey) && _closeAllKey != _pauseKey)
             {
-                pm.CloseTopPopup();
-            }
+                PopupManager pm = PopupManager.Instance;
+                if (pm != null) pm.CloseAll();
 
-            if (Input.GetKeyDown(_closeAllKey))
-            {
-                pm.CloseAll();
+                // Also return FSM to Playing so the game is unblocked.
+                if (GameStateMachine.Instance != null &&
+                    GameStateMachine.Instance.CurrentState != GameState.Playing)
+                {
+                    GameStateMachine.Instance.TransitionTo(GameState.Playing);
+                }
             }
         }
     }

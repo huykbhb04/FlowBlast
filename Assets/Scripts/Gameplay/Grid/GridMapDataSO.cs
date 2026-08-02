@@ -37,6 +37,20 @@ namespace FlowBlast.Gameplay.Grid
         public string MapName = "New Map";
         [Range(1, 5)] public int Difficulty = 1;
 
+        [Header("Level Progression")]
+        [Tooltip("Zero-based index of this level in the level sequence.")]
+        public int LevelIndex = 0;
+
+        [Tooltip("Coins awarded when the player completes this level.")]
+        [Min(0)] public int CoinReward = 50;
+
+        [Tooltip("Completed boxes needed for 1 star.")]
+        [Min(1)] public int StarThreshold1 = 1;
+        [Tooltip("Completed boxes needed for 2 stars.")]
+        [Min(1)] public int StarThreshold2 = 3;
+        [Tooltip("Completed boxes needed for 3 stars.")]
+        [Min(1)] public int StarThreshold3 = 5;
+
         [Header("Box Colors")]
         public List<BoxColor> AvailableColors = new List<BoxColor>
         {

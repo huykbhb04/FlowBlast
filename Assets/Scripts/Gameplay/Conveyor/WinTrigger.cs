@@ -1,12 +1,16 @@
 using UnityEngine;
+using FlowBlast.Core;
 using FlowBlast.Managers;
 using FlowBlast.UI.Popup;
 
 namespace FlowBlast.Gameplay.Conveyor
 {
     /// <summary>
-    /// Listens to GameProgressHUDDisplay.IsComplete and shows WinPopup via PopupManager
+    /// Listens to GameProgressHUDDisplay.IsComplete and transitions to
+    /// <see cref="GameState.Win"/> via <see cref="GameStateMachine"/>
     /// the moment all colors on the spline have been consumed.
+    ///
+    /// The Win popup is shown by GameStateMachine's EnterState(Win) callback.
     ///
     /// Attach this component anywhere in the scene (e.g. on the same Progress HUD
     /// GameObject, or on the root LevelManager). One instance per scene is sufficient.
@@ -50,12 +54,16 @@ namespace FlowBlast.Gameplay.Conveyor
             if (_hasTriggered) return;
             if (progressDisplay == null) return;
 
+            // Only check during gameplay.
+            if (GameStateMachine.Instance != null && !GameStateMachine.Instance.IsPlaying)
+                return;
+
             if (progressDisplay.IsComplete)
             {
                 _hasTriggered = true;
                 _triggerTime = Time.realtimeSinceStartup;
                 if (logTrigger)
-                    Debug.Log($"[WinTrigger] All colors consumed — triggering WinPopup in {delayBeforePopup:F2}s.");
+                    Debug.Log($"[WinTrigger] All colors consumed — triggering Win in {delayBeforePopup:F2}s.");
             }
             else if (_triggerTime >= 0f)
             {
@@ -71,33 +79,60 @@ namespace FlowBlast.Gameplay.Conveyor
 
             if (Time.realtimeSinceStartup - _triggerTime >= delayBeforePopup)
             {
-                ShowWinPopup();
+                TriggerWin();
                 _triggerTime = float.NegativeInfinity; // prevent re-trigger
             }
         }
 
-        private void ShowWinPopup()
+        private void TriggerWin()
         {
-            if (PopupManager.Instance == null)
+            // Award coins from level config.
+            AwardLevelCoins();
+
+            // Transition via GameStateMachine (which shows the popup).
+            if (GameStateMachine.Instance != null)
             {
-                Debug.LogError("[WinTrigger] PopupManager.Instance is null — make sure PopupManager exists in the scene.");
-                return;
+                GameStateMachine.Instance.TransitionTo(GameState.Win);
+            }
+            else
+            {
+                // Fallback: show popup directly if no FSM present.
+                if (PopupManager.Instance != null)
+                    PopupManager.Instance.Show(PopupId.Win);
+                else
+                    Debug.LogError("[WinTrigger] No GameStateMachine or PopupManager found.");
             }
 
-            PopupManager.Instance.Show(PopupId.Win);
             if (logTrigger)
-                Debug.Log("[WinTrigger] WinPopup shown.");
+                Debug.Log("[WinTrigger] Win triggered.");
         }
 
         /// <summary>
-        /// Manually trigger the win popup (e.g. from a button or level-design shortcut).
+        /// Award coins defined in the level's GridMapDataSO.
+        /// </summary>
+        private void AwardLevelCoins()
+        {
+            var levelLoader = FindObjectOfType<LevelLoader>();
+            if (levelLoader != null && levelLoader.CurrentConfig != null)
+            {
+                int reward = levelLoader.CurrentConfig.CoinReward;
+                if (reward > 0 && SaveManager.Instance != null)
+                {
+                    SaveManager.Instance.AddCoins(reward);
+                    Debug.Log($"[WinTrigger] Awarded {reward} coins.");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Manually trigger the win (e.g. from a button or level-design shortcut).
         /// Safe to call even if already triggered.
         /// </summary>
         public void TriggerNow()
         {
             if (_hasTriggered) return;
             _hasTriggered = true;
-            ShowWinPopup();
+            TriggerWin();
         }
 
         /// <summary>

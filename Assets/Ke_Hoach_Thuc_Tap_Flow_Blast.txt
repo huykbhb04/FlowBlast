@@ -1,0 +1,66 @@
+KẾ HOẠCH DỰ ÁN THỰC TẬP UNITY - FLOW BLAST
+Người thực hiện: Nguyễn Trọng Chức
+Vị trí: Unity Developer Intern
+Mentor phụ trách: Đặng Đình Thọ [cite: 1]
+Thời lượng: 4 tuần (Full-time) [cite: 1]
+
+--------------------------------------------------
+I. TỔNG QUAN DỰ ÁN & CÔNG NGHỆ ÁP DỤNG
+--------------------------------------------------
+1. Thông tin game:
+- Tên dự án: Flow Blast (thể loại conveyor color-match puzzle) [cite: 1].
+- Game tham chiếu: com.flow.blast.pixel.puzzle.out [cite: 1].
+- Cơ chế cốt lõi: 2 băng chuyền (trên và dưới) chở khối và hộp, kết hợp với khay hộp dạng lưới (grid) có vật cản (wall) [cite: 1].
+- Điều kiện thắng/thua: Thắng khi hoàn thành đủ target số hộp; Thua khi có 4 hộp trên băng chuyền dưới nhưng không thể nhận thêm block [cite: 1].
+
+2. Stack công nghệ & Quy trình làm việc:
+- Framework/Engine: Unity (phiên bản LTS theo tiêu chuẩn studio) [cite: 1].
+- Quản lý Source Code: Git (Sử dụng Fork GUI để thao tác pull, commit, xử lý merge conflict và stash code hàng ngày một cách trực quan).
+- Xử lý Sự kiện & Logic: Tích hợp UniRx để quản lý GameStateMachine, cập nhật UI và theo dõi tiến độ hộp (Observer pattern) nhằm giảm thiểu dependency.
+- Xử lý Bất đồng bộ: Sử dụng UniTask thay thế Coroutine truyền thống cho các tác vụ load LevelData, delay popup hoặc chờ animation.
+- Animation & Juice: Sử dụng DOTween cho các chuyển động UI, tween hệ thống coin và hiệu ứng khối bay vào hộp [cite: 1].
+
+--------------------------------------------------
+II. LỘ TRÌNH CHI TIẾT 4 TUẦN
+--------------------------------------------------
+TUẦN 1: CORE MECHANICS - SPLINES & MAP GRID [cite: 1]
+- Mục tiêu: Dựng thành công băng chuyền bằng Unity Splines và hệ thống lưới chọn hộp [cite: 1].
+- Ngày 1: Setup project, cài đặt package com.unity.splines [cite: 1]. Thiết lập repo trên Fork GUI. Khởi tạo cấu trúc folder.
+- Ngày 2: Tìm hiểu API của Splines, code logic cho object chạy đều dọc theo spline khép kín [cite: 1].
+- Ngày 3: Dựng băng chuyền trên và dưới. Định nghĩa điểm Cửa (Gate) và Vị trí nhận [cite: 1].
+- Ngày 4: Tạo cấu trúc dữ liệu cho Grid Map có chứa Wall. Code thuật toán BFS/Flood-fill để kiểm tra đường thông tới lối ra [cite: 1].
+- Ngày 5: Ghép luồng: Tap hộp -> chuyển lên băng chuyền dưới -> ghép màu tại cửa [cite: 1]. Đóng gói slice cơ bản để review [cite: 1].
+
+TUẦN 2: GAME LOOP, UI & DATA-DRIVEN [cite: 1]
+- Mục tiêu: Hoàn thiện vòng lặp chơi, tối ưu hiệu suất sinh object và tách dữ liệu màn chơi [cite: 1].
+- Ngày 6: Dựng UI cho Main Menu, HUD, Pause, Win/Lose [cite: 1]. Bind sự kiện UI bằng UniRx.
+- Ngày 7: Viết Pool Manager chung. Refactor hệ thống sinh/thu hồi block và hộp để giảm Garbage Collection (GC) [cite: 1].
+- Ngày 8: Chuyển dữ liệu màn chơi thành ScriptableObject (SO) [cite: 1]. Dùng UniTask để load SO.
+- Ngày 9: Cài đặt Game State Machine. Kết nối các điều kiện thắng, thua và thưởng coin [cite: 1].
+- Ngày 10: Code hệ thống Save/Load (JSON) và AudioManager [cite: 1]. Test vòng lặp và chuẩn bị báo cáo [cite: 1].
+
+TUẦN 3: HỆ THỐNG BOOSTER & ECONOMY [cite: 1]
+- Mục tiêu: Xây dựng kiến trúc Booster linh hoạt và cài đặt 3 loại Booster chính [cite: 1].
+- Ngày 11: Thiết kế Base class/Interface cho Booster. Dựng khung Economy (kiểm tra và trừ coin) [cite: 1].
+- Ngày 12: Code Booster Hand (bỏ qua luật wall 1 lần) và Booster Shuffle (đảo vị trí hộp, tính lại đường ra) [cite: 1].
+- Ngày 13: Code Booster Magnet (hút block cùng màu trên băng chuyền vào thẳng hộp) [cite: 1]. Kết hợp DOTween cho hiệu ứng bay.
+- Ngày 14: Tích hợp UI Booster, trạng thái đủ/thiếu coin và vô hiệu hóa khi Pause [cite: 1].
+- Ngày 15: Cân bằng game, setup Booster vào SO Level và test tổng thể các edge cases [cite: 1].
+
+TUẦN 4: TỐI ƯU, POLISH & BUILD RELEASE [cite: 1]
+- Mục tiêu: Nâng cao trải nghiệm người dùng (UX), tối ưu hiệu năng mobile và xuất bản [cite: 1].
+- Ngày 16: Dùng Unity Profiler và Frame Debugger đo đạc [cite: 1]. Tối ưu Draw call (Sprite Atlas) và giảm tính toán thừa của Splines [cite: 1].
+- Ngày 17: Polish game: Thêm Particle System (lúc block vào hộp, dùng booster) và các hiệu ứng DOTween cho hộp, coin [cite: 1].
+- Ngày 18: Hoàn thiện hệ thống Level select, mở khóa tiến độ và cân bằng lại Economy [cite: 1].
+- Ngày 19: Review code cùng Mentor. Refactor code lặp. Build APK và test trực tiếp trên điện thoại Android [cite: 1].
+- Ngày 20: Viết tài liệu README, chuẩn bị slide và demo sản phẩm cuối kỳ [cite: 1].
+
+--------------------------------------------------
+III. CHECKLIST BÁO CÁO HÀNG NGÀY (TRƯỚC 18:00) [cite: 1]
+--------------------------------------------------
+Nguyên tắc: Block quá 30 phút phải hỏi Mentor ngay [cite: 1].
+Format báo cáo [cite: 1]:
+1. Hôm nay đã làm: (Liệt kê task + % hoàn thành)
+2. Kết quả / Output: (Link commit trên Fork / file APK / Video quay màn hình)
+3. Vướng mắc / Câu hỏi: (Ghi rõ điểm đang block)
+4. Kế hoạch ngày mai: (Các task tiếp theo)

@@ -60,9 +60,19 @@ namespace FlowBlast.Managers
             return null;
         }
 
-        /// <summary>Instantiate by id directly.</summary>
+        /// <summary>Instantiate by id directly. Prevents duplicates if already open.</summary>
         public BasePopup Show(PopupId id)
         {
+            // Prevent spawning duplicates if popup of this type is already open
+            foreach (var openPopup in _stack)
+            {
+                if (openPopup != null && openPopup.name.StartsWith($"{id}Popup"))
+                {
+                    Debug.LogWarning($"[PopupManager] PopupId.{id} is already open. Skipping duplicate creation.");
+                    return openPopup;
+                }
+            }
+
             BasePopup prefab = GetPrefab(id);
             if (prefab == null) return null;
             return InstantiateAndShow(prefab, id);
