@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a49eb73a6c7bb3c4896ee041954ad6b0, type: 3}
+  m_Name: BoxVisualPalette
+  m_EditorClassIdentifier: Assembly-CSharp::FlowBlast.Gameplay.Grid.BoxVisualPaletteSO
+  _sharedMaterial: {fileID: 2100000, guid: 8ada3592c3d5ce94382f81ec15f9bced, type: 2}
+  _textures:
+  - Color: 0
+    Texture: {fileID: 2800000, guid: cefe8e13600dbf946a9c42f9f77028bb, type: 3}
+  - Color: 1
+    Texture: {fileID: 2800000, guid: 975393d0160e9b44c9928abfc4178a42, type: 3}
+  - Color: 2
+    Texture: {fileID: 2800000, guid: a1d32127e5b0a8246837dd01f230384c, type: 3}
+  - Color: 3
+    Texture: {fileID: 2800000, guid: 105da738be56c814e9b64920e4d79157, type: 3}
+  - Color: 4
+    Texture: {fileID: 2800000, guid: b16d145323452454c8196e56fe3dbf07, type: 3}
+  - Color: 5
+    Texture: {fileID: 2800000, guid: 6f441edc1ff6dad4a990986abc732841, type: 3}
+  - Color: 6
+    Texture: {fileID: 2800000, guid: 500b1b141cc29ae43a631edfd9035f41, type: 3}
+  - Color: 7
+    Texture: {fileID: 2800000, guid: e55f6a9652f4e2b4994f215442e6f508, type: 3}
+  - Color: 8
+    Texture: {fileID: 2800000, guid: 4db0e0904147abe41b871135c2016d28, type: 3}

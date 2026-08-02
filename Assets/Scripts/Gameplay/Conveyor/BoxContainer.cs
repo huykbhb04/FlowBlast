@@ -33,7 +33,7 @@ namespace FlowBlast.Gameplay.Conveyor
 
         public BoxContainer()
         {
-            RequiredColor = BoxColor.Red;
+            RequiredColor = BoxColorUtility.DefaultColor;
             Progress = 0f;
             ProgressStep = 5f;
         }

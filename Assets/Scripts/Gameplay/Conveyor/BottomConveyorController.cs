@@ -18,6 +18,9 @@ namespace FlowBlast.Gameplay.Conveyor
         [Header("Box Settings")]
         [SerializeField] private GameObject boxPrefab;
         [SerializeField] private float spacing = 2f;
+
+        [Header("Box Visual")]
+        [SerializeField] private BoxVisualPaletteSO visualPalette;
         
         [Header("Movement")]
         [SerializeField] private float moveSpeed = 2f;
@@ -44,12 +47,8 @@ namespace FlowBlast.Gameplay.Conveyor
         [Tooltip("Prefab for auto-spawned balls. Falls back to boxPrefab if null.")]
         [SerializeField] private GameObject streamBallPrefab;
 
-        [Tooltip("Palette colors the auto stream cycles through.")]
-        [SerializeField] private BoxColor[] streamColors = new[]
-        {
-            BoxColor.Red, BoxColor.Yellow, BoxColor.Green, BoxColor.Blue,
-            BoxColor.Red, BoxColor.Yellow, BoxColor.Green, BoxColor.Blue
-        };
+        [Tooltip("Palette colors the auto stream cycles through. Leave empty to use all BoxColor enum values.")]
+        [SerializeField] private BoxColor[] streamColors = System.Array.Empty<BoxColor>();
 
         [Tooltip("How far a stream ball travels before it dissolves (fraction of spline length, 0..1). 1 = full loop.")]
         [Range(0.1f, 1f)]
@@ -79,6 +78,7 @@ namespace FlowBlast.Gameplay.Conveyor
                 return;
             }
 
+            ResolveVisualPalette();
             BuildSplineCache();
 
             if (autoSpawnStream)
@@ -104,7 +104,8 @@ namespace FlowBlast.Gameplay.Conveyor
 
             float spacing = Mathf.Max(0.1f, splineLength / streamBallCount);
             float dissolveDistance = splineLength * Mathf.Clamp01(streamDissolveFraction);
-            int colorCount = streamColors != null ? streamColors.Length : 0;
+            BoxColor[] palette = GetStreamPalette();
+            int colorCount = palette.Length;
 
             for (int i = 0; i < streamBallCount; i++)
             {
@@ -116,7 +117,7 @@ namespace FlowBlast.Gameplay.Conveyor
                 ball.name = $"__BottomStreamBall_{i}";
 
                 // Apply a stream color (cycles through palette if provided).
-                BoxColor col = colorCount > 0 ? streamColors[i % colorCount] : BoxColor.Red;
+                BoxColor col = palette[i % colorCount];
                 ApplyStreamColor(ball, col);
 
                 ConveyorBox box = new ConveyorBox
@@ -134,6 +135,30 @@ namespace FlowBlast.Gameplay.Conveyor
             Debug.Log($"{name}: Spawned {streamBallCount} stream balls (dissolve at {dissolveDistance:F1}/{splineLength:F1}).");
         }
 
+        private void ResolveVisualPalette()
+        {
+            if (visualPalette != null)
+            {
+                return;
+            }
+
+            GridManager gridManager = FindObjectOfType<GridManager>();
+            if (gridManager != null)
+            {
+                visualPalette = gridManager.GetBoxVisualPalette();
+            }
+        }
+
+        private BoxColor[] GetStreamPalette()
+        {
+            if (streamColors != null && streamColors.Length > 0)
+            {
+                return streamColors;
+            }
+
+            return (BoxColor[])System.Enum.GetValues(typeof(BoxColor));
+        }
+
         private void ApplyStreamColor(GameObject ball, BoxColor color)
         {
             if (ball == null) return;
@@ -143,36 +168,13 @@ namespace FlowBlast.Gameplay.Conveyor
             if (colored == null) colored = ball.AddComponent<ConveyorColoredBlock>();
             colored.SetColor(color);
 
-            // Tint renderers via MaterialPropertyBlock (URP _BaseColor + built-in _Color).
-            Color c = BoxColorToUnityColor(color);
-            int baseColorId = Shader.PropertyToID("_BaseColor");
-            int colorId = Shader.PropertyToID("_Color");
             var renderers = ball.GetComponentsInChildren<Renderer>(true);
             for (int r = 0; r < renderers.Length; r++)
             {
-                var rend = renderers[r];
-                if (rend == null) continue;
-                MaterialPropertyBlock mpb = new MaterialPropertyBlock();
-                rend.GetPropertyBlock(mpb);
-                mpb.SetColor(baseColorId, c);
-                mpb.SetColor(colorId, c);
-                rend.SetPropertyBlock(mpb);
+                SplineConveyor.ApplyColorToRenderer(renderers[r], color, visualPalette);
             }
         }
 
-        private static Color BoxColorToUnityColor(BoxColor color)
-        {
-            switch (color)
-            {
-                case BoxColor.Red: return new Color(0.95f, 0.20f, 0.20f);
-                case BoxColor.Blue: return new Color(0.20f, 0.45f, 0.95f);
-                case BoxColor.Green: return new Color(0.25f, 0.80f, 0.30f);
-                case BoxColor.Yellow: return new Color(0.95f, 0.85f, 0.20f);
-                case BoxColor.Purple: return new Color(0.70f, 0.30f, 0.85f);
-                case BoxColor.Orange: return new Color(0.95f, 0.55f, 0.20f);
-                default: return Color.white;
-            }
-        }
 
         private void Update()
         {
@@ -326,9 +328,8 @@ namespace FlowBlast.Gameplay.Conveyor
             int streamIdx = boxes.IndexOf(b);
             ball.name = $"__BottomStreamBall_{streamIdx}";
 
-            BoxColor col = (streamColors != null && streamColors.Length > 0)
-                ? streamColors[streamIdx % streamColors.Length]
-                : BoxColor.Red;
+            BoxColor[] palette = GetStreamPalette();
+            BoxColor col = palette[streamIdx % palette.Length];
             ApplyStreamColor(ball, col);
 
             b.Transform = ball.transform;

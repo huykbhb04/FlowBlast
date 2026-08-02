@@ -105,8 +105,8 @@ namespace FlowBlast.Gameplay.Conveyor
                     .Where(s => s != null && s.IsOccupied && !s.IsCompleted && s.GetContainer() != null)
                     .Select(s => $"slot{s.SlotIndex}:{s.GetContainer().RequiredColor}")
                     .ToArray();
-                Debug.Log($"{nameof(GateMatcher)}: top ball {topColor} at gate, matched {slotInfo}. " +
-                          $"Occupied slots: [{string.Join(", ", occupiedSlots)}]");
+                //Debug.Log($"{nameof(GateMatcher)}: top ball {topColor} at gate, matched {slotInfo}. " +
+                         // $"Occupied slots: [{string.Join(", ", occupiedSlots)}]");
             }
 
             // If every slot of this color has already been completed, dissolve the
@@ -120,8 +120,8 @@ namespace FlowBlast.Gameplay.Conveyor
                     return;
                 }
 
-                if (_logEvents)
-                    Debug.Log($"{nameof(GateMatcher)}: No occupied slot under gate, top {topColor} block continues.");
+                // if (_logEvents)
+                    //Debug.Log($"{nameof(GateMatcher)}: No occupied slot under gate, top {topColor} block continues.");
                 ContinueTopBlock(topBlock);
                 return;
             }

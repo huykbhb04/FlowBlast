@@ -8,8 +8,11 @@ namespace FlowBlast.Gameplay.Conveyor
 {
     public class BoxTapMover : MonoBehaviour
     {
-        [Header("Box Identity")]
-        [SerializeField] private FlowBlast.Gameplay.Grid.BoxColor boxColor = FlowBlast.Gameplay.Grid.BoxColor.Red;
+        private BoxColor currentBoxColor = BoxColorUtility.DefaultColor;
+
+        [Header("Box Visual")]
+        [SerializeField] private BoxVisualView boxVisualView;
+        [SerializeField] private BoxVisualPaletteSO visualPalette;
 
         [Header("Spline")]
         [SerializeField] private SplineContainer splineContainer;
@@ -57,8 +60,6 @@ namespace FlowBlast.Gameplay.Conveyor
                 mainCamera = Camera.main;
             }
 
-            // Pull the correct color from the grid cell matching this Box's "Box_R_C" name.
-            // Inspector field may be left at default (Red) on prefabs; we override with the live cell color.
             ResolveBoxColorFromGrid();
 
             // Sync trapped state from GridManager (cell.IsTrapped) using box name "Box_R_C".
@@ -68,33 +69,81 @@ namespace FlowBlast.Gameplay.Conveyor
         }
 
         /// <summary>
-        /// Read "Box_{row}_{col}" from this GameObject's name and ask GridManager for the cell color.
-        /// If the cell has a BoxColor (non-Empty / non-Exit), override boxColor with it. Otherwise
-        /// keep the Inspector-assigned value (so manual prefab overrides still work for non-grid boxes).
+        /// Read "Box_{row}_{col}" from this GameObject's name and apply the matching level-data texture.
         /// </summary>
         private void ResolveBoxColorFromGrid()
         {
+            if (!TryGetGridPosition(out int row, out int col)) return;
+
+            GridManager gm = FindObjectOfType<GridManager>();
+            if (gm == null) return;
+            ResolveVisualReferences(gm);
+
+            GridMapData map = gm.GetGridMap();
+            if (map == null) return;
+            GridCell cell = map.GetCell(row, col);
+            if (cell == null) return;
+            if (cell.Type != CellType.Box) return;
+
+            ApplyBoxColor(cell.Color);
+        }
+
+        private void ResolveVisualReferences(GridManager gridManager)
+        {
+            if (visualPalette == null && gridManager != null)
+            {
+                visualPalette = gridManager.GetBoxVisualPalette();
+            }
+
+            if (boxVisualView == null)
+            {
+                boxVisualView = GetComponent<BoxVisualView>();
+            }
+        }
+
+        public void ApplyBoxColor(BoxColor color)
+        {
+            currentBoxColor = color;
+            ApplyBoxVisual(color);
+        }
+
+        public void SetVisualPalette(BoxVisualPaletteSO palette)
+        {
+            visualPalette = palette;
+        }
+
+        public bool TryGetGridPosition(out int row, out int col)
+        {
+            row = -1;
+            col = -1;
+
             string n = name;
             int us = n.IndexOf('_');
-            if (us < 0) return;
+            if (us < 0) return false;
             int us2 = n.IndexOf('_', us + 1);
-            if (us2 < 0) return;
-            if (!int.TryParse(n.Substring(us + 1, us2 - us - 1), out int row)) return;
-            if (!int.TryParse(n.Substring(us2 + 1), out int col)) return;
+            if (us2 < 0) return false;
+            if (!int.TryParse(n.Substring(us + 1, us2 - us - 1), out row)) return false;
+            return int.TryParse(n.Substring(us2 + 1), out col);
+        }
 
-            var gm = FindObjectOfType<FlowBlast.Gameplay.Grid.GridManager>();
-            if (gm == null) return;
-            var map = gm.GetGridMap();
-            if (map == null) return;
-            var cell = map.GetCell(row, col);
-            if (cell == null) return;
-            if (cell.Type != FlowBlast.Gameplay.Grid.CellType.Box) return;
-
-            if (cell.Color != boxColor)
+        private void ApplyBoxVisual(BoxColor color)
+        {
+            if (boxVisualView == null)
             {
-                Debug.Log($"[BoxTapMover] '{name}' color override {boxColor} -> {cell.Color} from grid cell ({row},{col}).");
-                boxColor = cell.Color;
+                boxVisualView = GetComponent<BoxVisualView>();
             }
+
+            if (boxVisualView == null)
+            {
+                return;
+            }
+
+            if (visualPalette != null)
+            {
+                boxVisualView.SetPalette(visualPalette);
+            }
+
+            boxVisualView.Apply(color);
         }
 
         /// <summary>
@@ -103,17 +152,12 @@ namespace FlowBlast.Gameplay.Conveyor
         /// </summary>
         private void SyncTrappedStateFromGrid()
         {
-            string n = name; // e.g. "Box_0_1" or "Box_0_1(Clone)"
-            int us = n.IndexOf('_');
-            if (us < 0) return;
-            int us2 = n.IndexOf('_', us + 1);
-            if (us2 < 0) return;
-            if (!int.TryParse(n.Substring(us + 1, us2 - us - 1), out int row)) return;
-            if (!int.TryParse(n.Substring(us2 + 1), out int col)) return;
+            if (!TryGetGridPosition(out int row, out int col)) return;
 
-            var gm = FindObjectOfType<FlowBlast.Gameplay.Grid.GridManager>();
+            GridManager gm = FindObjectOfType<GridManager>();
             if (gm == null) return;
-            var map = gm.GetGridMap();
+            ResolveVisualReferences(gm);
+            GridMapData map = gm.GetGridMap();
             if (map == null) return;
             var cell = map.GetCell(row, col);
             if (cell == null) return;
@@ -288,7 +332,7 @@ namespace FlowBlast.Gameplay.Conveyor
             BoxSlot assignedSlot = null;
             if (ray != null)
             {
-                assignedSlot = ray.PlaceBox(gameObject, boxColor);
+                assignedSlot = ray.PlaceBox(gameObject, currentBoxColor);
                 if (assignedSlot == null)
                 {
                     Debug.Log($"[BoxTapMover] '{name}' cannot move - all ray slots occupied.");

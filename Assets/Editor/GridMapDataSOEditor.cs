@@ -17,7 +17,7 @@ namespace FlowBlast.Gameplay.Grid
 
         // Painting state
         private CellType _paintType = CellType.Wall;
-        private BoxColor _selectedColor = BoxColor.Blue;
+        private BoxColor _selectedColor = BoxColorUtility.DefaultColor;
 
         // Random map generation range
         private int _wallPercentMin = 10;
@@ -28,6 +28,7 @@ namespace FlowBlast.Gameplay.Grid
         private SerializedProperty _colsProp;
         private SerializedProperty _mapNameProp;
         private SerializedProperty _difficultyProp;
+        private SerializedProperty _visualPaletteProp;
         private SerializedProperty _availableColorsProp;
         private SerializedProperty _boxPrefabProp;
         private SerializedProperty _wallPrefabProp;
@@ -48,15 +49,8 @@ namespace FlowBlast.Gameplay.Grid
         private GUIStyle _sectionHeaderStyle;
         private bool _stylesReady;
 
-        private static readonly Dictionary<BoxColor, Color> ColorSwatches = new Dictionary<BoxColor, Color>
-        {
-            { BoxColor.Red,    new Color(0.62f, 0.10f, 0.16f) },
-            { BoxColor.Blue,   new Color(0.20f, 0.55f, 0.95f) },
-            { BoxColor.Green,  new Color(0.18f, 0.45f, 0.28f) },
-            { BoxColor.Yellow, new Color(0.95f, 0.78f, 0.10f) },
-            { BoxColor.Purple, new Color(0.45f, 0.20f, 0.55f) },
-            { BoxColor.Orange, new Color(0.92f, 0.48f, 0.12f) },
-        };
+        private static readonly int BaseMapId = Shader.PropertyToID("_BaseMap");
+        private static readonly int MainTexId = Shader.PropertyToID("_MainTex");
 
         private void OnEnable()
         {
@@ -67,6 +61,7 @@ namespace FlowBlast.Gameplay.Grid
             _colsProp = serializedObject.FindProperty("Cols");
             _mapNameProp = serializedObject.FindProperty("MapName");
             _difficultyProp = serializedObject.FindProperty("Difficulty");
+            _visualPaletteProp = serializedObject.FindProperty("VisualPalette");
             _availableColorsProp = serializedObject.FindProperty("AvailableColors");
             _boxPrefabProp = serializedObject.FindProperty("BoxPrefab");
             _wallPrefabProp = serializedObject.FindProperty("WallPrefab");
@@ -118,6 +113,7 @@ namespace FlowBlast.Gameplay.Grid
             EditorGUILayout.PropertyField(_difficultyProp);
 
             EditorGUILayout.Space(6);
+            EditorGUILayout.PropertyField(_visualPaletteProp, new GUIContent("Box Palette"));
             EditorGUILayout.PropertyField(_availableColorsProp, new GUIContent("Colors"), true);
 
             EditorGUILayout.Space(12);
@@ -176,16 +172,20 @@ namespace FlowBlast.Gameplay.Grid
         {
             EditorGUILayout.LabelField("Box Color Palette", _sectionHeaderStyle);
 
+            if (_map.VisualPalette == null)
+            {
+                EditorGUILayout.HelpBox("Assign Box Palette to preview and build boxes with texture colors.", MessageType.Warning);
+            }
+
             EditorGUILayout.BeginHorizontal();
             foreach (BoxColor color in _map.AvailableColors)
             {
-                Color swatch = ColorSwatches.TryGetValue(color, out var c) ? c : Color.white;
-                Rect rect = GUILayoutUtility.GetRect(34, 28, GUILayout.Width(34), GUILayout.Height(28));
+                Texture texture = GetPaletteTexture(color);
+                Rect rect = GUILayoutUtility.GetRect(42, 34, GUILayout.Width(42), GUILayout.Height(34));
+                DrawPaletteRect(rect, color, texture);
 
-                EditorGUI.DrawRect(rect, swatch);
                 if (color == _selectedColor)
                 {
-                    // Simple selection outline
                     Handles.BeginGUI();
                     Handles.color = Color.white;
                     Handles.DrawSolidRectangleWithOutline(rect, Color.clear, Color.white);
@@ -204,19 +204,40 @@ namespace FlowBlast.Gameplay.Grid
             EditorGUILayout.Space(4);
             EditorGUILayout.BeginHorizontal();
 
-            Color selectedSwatch = ColorSwatches.TryGetValue(_selectedColor, out var sc) ? sc : Color.white;
-            Rect previewRect = GUILayoutUtility.GetRect(22, 20, GUILayout.Width(22), GUILayout.Height(20));
-            EditorGUI.DrawRect(previewRect, selectedSwatch);
+            Texture selectedTexture = GetPaletteTexture(_selectedColor);
+            Rect previewRect = GUILayoutUtility.GetRect(28, 24, GUILayout.Width(28), GUILayout.Height(24));
+            DrawPaletteRect(previewRect, _selectedColor, selectedTexture);
 
-            EditorGUILayout.LabelField(
-                $"Selected: {_selectedColor}   #{ColorUtility.ToHtmlStringRGB(selectedSwatch)}",
-                GUILayout.ExpandWidth(true));
+            EditorGUILayout.LabelField($"Selected: {_selectedColor}", GUILayout.ExpandWidth(true));
 
             if (GUILayout.Button("Reset", GUILayout.Width(70)))
             {
-                _selectedColor = _map.AvailableColors.Count > 0 ? _map.AvailableColors[0] : BoxColor.Red;
+                _selectedColor = _map.AvailableColors.Count > 0 ? _map.AvailableColors[0] : BoxColorUtility.DefaultColor;
             }
             EditorGUILayout.EndHorizontal();
+        }
+
+        private Texture GetPaletteTexture(BoxColor color)
+        {
+            if (_map == null || _map.VisualPalette == null)
+            {
+                return null;
+            }
+
+            return _map.VisualPalette.TryGetTexture(color, out Texture texture) ? texture : null;
+        }
+
+        private void DrawPaletteRect(Rect rect, BoxColor color, Texture texture)
+        {
+            if (texture != null)
+            {
+                GUI.DrawTexture(rect, texture, ScaleMode.ScaleToFit, true);
+            }
+            else
+            {
+                EditorGUI.DrawRect(rect, EditorGUIUtility.isProSkin ? new Color(0.22f, 0.22f, 0.22f) : new Color(0.76f, 0.76f, 0.76f));
+                GUI.Label(rect, color.ToString().Substring(0, 1), _cellLabelStyle);
+            }
         }
 
         // ------------------------------------------------------------------
@@ -370,7 +391,7 @@ namespace FlowBlast.Gameplay.Grid
                     instance.name = $"{cell.Type}_{r}_{c}";
 
                     if (cell.Type == CellType.Box)
-                        ApplyBoxColor(instance, cell.Color);
+                        ApplyBoxVisual(instance, cell.Color);
                 }
             }
 
@@ -383,50 +404,85 @@ namespace FlowBlast.Gameplay.Grid
             }
         }
 
-        /// <summary>
-        /// Best-effort tint of the spawned box prefab via its Renderer's material property block.
-        /// Replace this with a call into your own Box component (e.g. box.Init(color)) if you have one.
-        /// </summary>
-        private void ApplyBoxColor(GameObject instance, BoxColor color)
+        private void ApplyBoxVisual(GameObject instance, BoxColor color)
         {
-            if (!ColorSwatches.TryGetValue(color, out var c)) return;
+            if (instance == null || _map == null || _map.VisualPalette == null)
+            {
+                return;
+            }
+
+            if (!_map.VisualPalette.TryGetTexture(color, out Texture texture))
+            {
+                return;
+            }
 
             Renderer renderer = instance.GetComponentInChildren<Renderer>();
-            if (renderer == null) return;
+            if (renderer == null)
+            {
+                return;
+            }
 
-            // 1) Try MaterialPropertyBlock first (cheap, no allocation, but only works
-            //    if the shader actually exposes a color property by that name).
+            FlowBlast.Gameplay.Conveyor.BoxVisualView visualView = ConfigureBoxVisualView(instance, renderer);
+            ConfigureBoxTapMover(instance, visualView);
+
+            if (_map.VisualPalette.SharedMaterial != null)
+            {
+                renderer.sharedMaterial = _map.VisualPalette.SharedMaterial;
+            }
+
             MaterialPropertyBlock block = new MaterialPropertyBlock();
             renderer.GetPropertyBlock(block);
-            block.SetColor("_Color", c);
-            block.SetColor("_BaseColor", c);
-            block.SetColor("_EmissionColor", c);
+            block.SetTexture(BaseMapId, texture);
+            block.SetTexture(MainTexId, texture);
             renderer.SetPropertyBlock(block);
+        }
 
-            // 2) Fallback: clobber the material instance color directly. Using `material` (not
-            //    `sharedMaterial`) clones the material per renderer, so we don't pollute the
-            //    shared asset or other boxes. This works regardless of shader property names.
-            Material[] mats = renderer.materials;
-            bool dirty = false;
-            for (int i = 0; i < mats.Length; i++)
+        private FlowBlast.Gameplay.Conveyor.BoxVisualView ConfigureBoxVisualView(GameObject instance, Renderer renderer)
+        {
+            FlowBlast.Gameplay.Conveyor.BoxVisualView visualView = instance.GetComponent<FlowBlast.Gameplay.Conveyor.BoxVisualView>();
+            if (visualView == null)
             {
-                if (mats[i] == null) continue;
+                visualView = Undo.AddComponent<FlowBlast.Gameplay.Conveyor.BoxVisualView>(instance);
+            }
 
-                if (mats[i].HasProperty("_BaseColor"))
-                {
-                    mats[i].SetColor("_BaseColor", c);
-                    dirty = true;
-                }
-                if (mats[i].HasProperty("_Color"))
-                {
-                    mats[i].SetColor("_Color", c);
-                    dirty = true;
-                }
-            }
-            if (dirty)
+            SerializedObject visualObject = new SerializedObject(visualView);
+            SerializedProperty rendererProperty = visualObject.FindProperty("_renderer");
+            SerializedProperty paletteProperty = visualObject.FindProperty("_palette");
+            if (rendererProperty != null)
             {
-                renderer.materials = mats;
+                rendererProperty.objectReferenceValue = renderer;
             }
+            if (paletteProperty != null)
+            {
+                paletteProperty.objectReferenceValue = _map.VisualPalette;
+            }
+            visualObject.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(visualView);
+
+            return visualView;
+        }
+
+        private void ConfigureBoxTapMover(GameObject instance, FlowBlast.Gameplay.Conveyor.BoxVisualView visualView)
+        {
+            FlowBlast.Gameplay.Conveyor.BoxTapMover tapMover = instance.GetComponent<FlowBlast.Gameplay.Conveyor.BoxTapMover>();
+            if (tapMover == null)
+            {
+                return;
+            }
+
+            SerializedObject moverObject = new SerializedObject(tapMover);
+            SerializedProperty visualViewProperty = moverObject.FindProperty("boxVisualView");
+            SerializedProperty paletteProperty = moverObject.FindProperty("visualPalette");
+            if (visualViewProperty != null)
+            {
+                visualViewProperty.objectReferenceValue = visualView;
+            }
+            if (paletteProperty != null)
+            {
+                paletteProperty.objectReferenceValue = _map.VisualPalette;
+            }
+            moverObject.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(tapMover);
         }
 
         private void ClearBoardChildren()
@@ -461,7 +517,7 @@ namespace FlowBlast.Gameplay.Grid
                 var cell = _map.Cells[idx];
                 if (cell.Type != CellType.Box) continue;
 
-                ApplyBoxColor(child.gameObject, cell.Color);
+                ApplyBoxVisual(child.gameObject, cell.Color);
                 EditorUtility.SetDirty(child.gameObject);
                 touched++;
             }
@@ -508,7 +564,15 @@ namespace FlowBlast.Gameplay.Grid
 
             EditorGUI.DrawRect(rect, bg);
 
-            // subtle border
+            if (cell.Type == CellType.Box)
+            {
+                Texture texture = GetPaletteTexture(cell.Color);
+                if (texture != null)
+                {
+                    GUI.DrawTexture(rect, texture, ScaleMode.ScaleToFit, true);
+                }
+            }
+
             Handles.BeginGUI();
             Handles.color = new Color(0f, 0f, 0f, 0.5f);
             Handles.DrawSolidRectangleWithOutline(rect, Color.clear, Handles.color);
@@ -559,7 +623,7 @@ namespace FlowBlast.Gameplay.Grid
                     if (e.Type == CellType.Exit)
                         _map.Cells[idx] = CellDataEntry.Empty;
                 }
-                _map.SetCell(r, c, new CellDataEntry(CellType.Exit, BoxColor.Red));
+                _map.SetCell(r, c, new CellDataEntry(CellType.Exit, BoxColorUtility.DefaultColor));
             }
             else
             {
@@ -601,7 +665,7 @@ namespace FlowBlast.Gameplay.Grid
                 case CellType.Exit:
                     return new Color(0.12f, 0.75f, 0.35f);
                 case CellType.Box:
-                    return ColorSwatches.TryGetValue(cell.Color, out var c) ? c : Color.white;
+                    return EditorGUIUtility.isProSkin ? new Color(0.18f, 0.18f, 0.18f) : new Color(0.82f, 0.82f, 0.82f);
                 default:
                     return new Color(0.22f, 0.22f, 0.22f); // Empty
             }
@@ -613,7 +677,7 @@ namespace FlowBlast.Gameplay.Grid
             {
                 case CellType.Wall: return "#";
                 case CellType.Exit: return "E";
-                case CellType.Box: return "B";
+                case CellType.Box: return GetPaletteTexture(cell.Color) == null ? "B" : "";
                 default: return "";
             }
         }

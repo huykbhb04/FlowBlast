@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using FlowBlast.Core;
 using FlowBlast.Gameplay.Grid;
@@ -59,9 +60,13 @@ namespace FlowBlast.Gameplay
             _currentConfig = config;
 
             if (_gridManager != null)
+            {
                 _gridManager.LoadMapFromSO(config);
+            }
             else
+            {
                 Debug.LogWarning("[LevelLoader] GridManager not assigned.");
+            }
 
             if (_conveyor != null)
                 _conveyor.SetupFromConfig(config);
@@ -85,7 +90,33 @@ namespace FlowBlast.Gameplay
             if (_winTrigger != null) _winTrigger.ResetTrigger();
             if (_loseTrigger != null) _loseTrigger.ResetTrigger();
 
+            SyncSceneBoxes(config);
+            StartCoroutine(SyncSceneBoxesNextFrame(config));
+
             Debug.Log($"[LevelLoader] Loaded level: {config.MapName} (index={config.LevelIndex}, target={target})");
+        }
+
+        private IEnumerator SyncSceneBoxesNextFrame(GridMapDataSO config)
+        {
+            yield return null;
+            SyncSceneBoxes(config);
+        }
+
+        private void SyncSceneBoxes(GridMapDataSO config)
+        {
+            BoxTapMover[] boxMovers = FindObjectsOfType<BoxTapMover>();
+            for (int i = 0; i < boxMovers.Length; i++)
+            {
+                BoxTapMover boxMover = boxMovers[i];
+                if (boxMover == null) continue;
+                if (!boxMover.TryGetGridPosition(out int row, out int col)) continue;
+
+                CellDataEntry cell = config.GetCell(row, col);
+                if (cell.Type != CellType.Box) continue;
+
+                boxMover.SetVisualPalette(config.VisualPalette);
+                boxMover.ApplyBoxColor(cell.Color);
+            }
         }
 
         public void ReloadLevel()

@@ -30,6 +30,16 @@ MonoBehaviour:
   - Type: 2
     Color: 0
   - Type: 1
+    Color: 1
+  - Type: 2
+    Color: 0
+  - Type: 2
+    Color: 0
+  - Type: 2
+    Color: 0
+  - Type: 2
+    Color: 0
+  - Type: 1
     Color: 2
   - Type: 2
     Color: 0
@@ -40,25 +50,21 @@ MonoBehaviour:
   - Type: 2
     Color: 0
   - Type: 1
-    Color: 1
-  - Type: 1
     Color: 3
-  - Type: 2
-    Color: 0
-  - Type: 2
-    Color: 0
-  - Type: 2
-    Color: 0
-  - Type: 2
-    Color: 0
   - Type: 2
     Color: 0
   - Type: 2
     Color: 0
   MapName: Level 01 - Easy
   Difficulty: 1
+  LevelIndex: 0
+  CoinReward: 50
+  StarThreshold1: 1
+  StarThreshold2: 3
+  StarThreshold3: 5
+  VisualPalette: {fileID: 11400000, guid: fd7faaf907e871c4bb94edd826b7af5c, type: 2}
   AvailableColors: 00000000010000000200000003000000
-  BoxPrefab: {fileID: 4241930193150646128, guid: 1b3a4f2ebd5c1ea44b9b727282fbbed7, type: 3}
+  BoxPrefab: {fileID: 9168233812504392444, guid: 9d0a33004b84c0348b0af3e3c24dfe40, type: 3}
   WallPrefab: {fileID: 7794587890781515801, guid: b77498a17c7640b4cb883e763a1bcbc8, type: 3}
   BackgroundPrefab: {fileID: 0}
   SlotPrefab: {fileID: 0}

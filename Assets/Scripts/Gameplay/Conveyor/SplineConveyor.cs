@@ -9,7 +9,7 @@ namespace FlowBlast.Gameplay.Conveyor
     public class ColoredBlockPrefab
     {
         public GameObject Prefab;
-        public BoxColor Color = BoxColor.Red;
+        public BoxColor Color = BoxColorUtility.DefaultColor;
     }
 
     /// <summary>
@@ -46,6 +46,9 @@ namespace FlowBlast.Gameplay.Conveyor
         [Header("Blocks (one entry per color used by the map)")]
         [SerializeField]
         private List<ColoredBlockPrefab> blockPrefabs = new List<ColoredBlockPrefab>();
+
+        [Header("Block Visual")]
+        [SerializeField] private BoxVisualPaletteSO visualPalette;
 
         [Header("Block count")]
         [Tooltip("Total number of blocks to spawn on the spline.")]
@@ -181,6 +184,7 @@ namespace FlowBlast.Gameplay.Conveyor
                 return;
             }
 
+            ResolveVisualPalette();
             ResolveBlockPrefabs();
             if (blockPrefabs.Count == 0 || blockPrefabs[0].Prefab == null)
             {
@@ -274,6 +278,7 @@ namespace FlowBlast.Gameplay.Conveyor
                     if (_poolsPerColor[i] != null)
                     {
                         _poolsPerColor[i].SetColor(blockPrefabs[i].Color);
+                        _poolsPerColor[i].SetVisualPalette(visualPalette);
                     }
                 }
                 return;
@@ -299,6 +304,7 @@ namespace FlowBlast.Gameplay.Conveyor
                 // block is guaranteed valid regardless of the prefab's contents.
                 pool.Prefab = entry.Prefab;
                 pool.SetColor(entry.Color);
+                pool.SetVisualPalette(visualPalette);
                 pool.WarmSize = Mathf.Max(blocksPerCluster, 4);
 
                 _poolsPerColor[i] = pool;
@@ -360,6 +366,20 @@ namespace FlowBlast.Gameplay.Conveyor
         /// Pull the color palette from GridManager if autoSyncFromGridManager is on and the
         /// list is still empty. Otherwise keep the manually-assigned blockPrefabs.
         /// </summary>
+        private void ResolveVisualPalette()
+        {
+            if (visualPalette != null)
+            {
+                return;
+            }
+
+            var gm = FindObjectOfType<FlowBlast.Gameplay.Grid.GridManager>();
+            if (gm != null)
+            {
+                visualPalette = gm.GetBoxVisualPalette();
+            }
+        }
+
         private void ResolveBlockPrefabs()
         {
             if (!autoSyncFromGridManager) return;
@@ -372,6 +392,11 @@ namespace FlowBlast.Gameplay.Conveyor
             {
                 Debug.LogWarning($"{name}: autoSyncFromGridManager is on but no GridManager was found; leaving blockPrefabs empty.");
                 return;
+            }
+
+            if (visualPalette == null)
+            {
+                visualPalette = gm.GetBoxVisualPalette();
             }
 
             var palette = gm.GetAvailableColors();
@@ -450,36 +475,31 @@ namespace FlowBlast.Gameplay.Conveyor
         /// Apply a BoxColor to a Renderer freshly spawned on the conveyor.
         /// Uses MaterialPropertyBlock so we don't leak material instances per ball.
         /// </summary>
-        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
-        private static readonly int ColorId = Shader.PropertyToID("_Color");
+        private static readonly int BaseMapId = Shader.PropertyToID("_BaseMap");
+        private static readonly int MainTexId = Shader.PropertyToID("_MainTex");
 
-        internal static void ApplyColorToRenderer(Renderer rend, BoxColor color)
+        internal static void ApplyColorToRenderer(Renderer rend, BoxColor color, BoxVisualPaletteSO palette = null)
         {
             if (rend == null) return;
-            Color c = BoxColorToUnityColor(color);
+
             MaterialPropertyBlock mpb = new MaterialPropertyBlock();
             rend.GetPropertyBlock(mpb);
-            // Try URP first, fallback to legacy/built-in
-            mpb.SetColor(BaseColorId, c);
-            mpb.SetColor(ColorId, c);
-            rend.SetPropertyBlock(mpb);
-        }
 
-        /// <summary>
-        /// Map BoxColor to a sensible Color value. Pulled from the same palette Unity
-        /// uses to tint box prefabs so the visual matches the gameplay intent.
-        /// </summary>
-        public static Color BoxColorToUnityColor(BoxColor color)
-        {
-            switch (color)
+            if (palette == null)
             {
-                case BoxColor.Red:     return new Color(0.91f, 0.27f, 0.27f);
-                case BoxColor.Blue:    return new Color(0.27f, 0.55f, 0.91f);
-                case BoxColor.Green:   return new Color(0.30f, 0.78f, 0.40f);
-                case BoxColor.Yellow:  return new Color(0.96f, 0.86f, 0.27f);
-                case BoxColor.Purple:  return new Color(0.62f, 0.34f, 0.85f);
-                case BoxColor.Orange:  return new Color(0.96f, 0.55f, 0.20f);
-                default:               return Color.white;
+                return;
+            }
+
+            if (palette.SharedMaterial != null)
+            {
+                rend.sharedMaterial = palette.SharedMaterial;
+            }
+
+            if (palette.TryGetTexture(color, out Texture texture))
+            {
+                mpb.SetTexture(BaseMapId, texture);
+                mpb.SetTexture(MainTexId, texture);
+                rend.SetPropertyBlock(mpb);
             }
         }
 
@@ -649,17 +669,7 @@ namespace FlowBlast.Gameplay.Conveyor
                 var renderers = blockObject.GetComponentsInChildren<Renderer>(true);
                 for (int r = 0; r < renderers.Length; r++)
                 {
-                    ApplyColorToRenderer(renderers[r], entry.Color);
-                }
-
-                // Also push the color onto BoxTapMover if the prefab has one (some ball
-                // prefabs double as boxes - harmless if missing).
-                var tap = blockObject.GetComponent<BoxTapMover>();
-                if (tap != null)
-                {
-                    typeof(BoxTapMover)
-                        .GetField("boxColor", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                        ?.SetValue(tap, entry.Color);
+                    ApplyColorToRenderer(renderers[r], entry.Color, visualPalette);
                 }
 
                 UpdateBlockTransform(blockTransform, startDistance);
@@ -989,6 +999,7 @@ namespace FlowBlast.Gameplay.Conveyor
             _pendingConfig = null;
 
             // Apply conveyor parameters from SO.
+            visualPalette = config.VisualPalette;
             moveSpeed = config.BlockSpeed;
             blocksPerCluster = config.BlocksPerCluster;
             BlocksPerSecond = config.BlocksPerSecond;

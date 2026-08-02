@@ -191,6 +191,7 @@ namespace FlowBlast.Gameplay.Grid
         }
 
         public GridMapData GetGridMap() => gridMap;
+        public BoxVisualPaletteSO GetBoxVisualPalette() => mapDataSO != null ? mapDataSO.VisualPalette : null;
         public List<GridCell> GetSelectableBoxes() =>
             gridMap != null ? Pathfinding.GetSelectableBoxes(gridMap) : new List<GridCell>();
         public bool HasSelectableBoxes() => GetSelectableBoxes().Count > 0;
@@ -203,11 +204,7 @@ namespace FlowBlast.Gameplay.Grid
         {
             if (mapDataSO != null && mapDataSO.AvailableColors != null && mapDataSO.AvailableColors.Count > 0)
                 return mapDataSO.AvailableColors;
-            return new List<BoxColor>
-            {
-                BoxColor.Red, BoxColor.Blue, BoxColor.Green,
-                BoxColor.Yellow, BoxColor.Purple, BoxColor.Orange
-            };
+            return BoxColorUtility.CreateDefaultPalette();
         }
     }
 
@@ -226,7 +223,7 @@ namespace FlowBlast.Gameplay.Grid
     {
         private GridManager gridManager;
         private GridCell cell;
-        private BoxColor color = BoxColor.Red;
+        private BoxColor color = BoxColorUtility.DefaultColor;
 
         public void Initialize(GridManager manager, GridCell gridCell, BoxColor boxColor)
         {

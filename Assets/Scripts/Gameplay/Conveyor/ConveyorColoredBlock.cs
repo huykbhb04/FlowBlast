@@ -11,7 +11,7 @@ namespace FlowBlast.Gameplay.Conveyor
     /// </summary>
     public class ConveyorColoredBlock : MonoBehaviour
     {
-        [SerializeField] private BoxColor color = BoxColor.Red;
+        [SerializeField] private BoxColor color = BoxColorUtility.DefaultColor;
 
         public BoxColor Color => color;
 

@@ -23,11 +23,13 @@ namespace FlowBlast.Gameplay.Conveyor
     {
         [Header("Block Pool Config")]
         [Tooltip("Which BoxColor this pool manages. Must match one entry in SplineConveyor's blockPrefabs list.")]
-        [SerializeField] private BoxColor _color = BoxColor.Red;
+        [SerializeField] private BoxColor _color = BoxColorUtility.DefaultColor;
 
         [Tooltip("GameObject prefab to instantiate when the pool needs to grow. " +
                  "May or may not have ConveyorColoredBlock — we handle that at spawn time.")]
         [SerializeField] private GameObject _prefab;
+
+        [SerializeField] private BoxVisualPaletteSO _visualPalette;
 
         [Tooltip("Number of instances to pre-warm on Start().")]
         [SerializeField] private int _warmSize = 4;
@@ -58,6 +60,7 @@ namespace FlowBlast.Gameplay.Conveyor
         public int TotalSpawned => _totalSpawned;
 
         public void SetColor(BoxColor color) => _color = color;
+        public void SetVisualPalette(BoxVisualPaletteSO visualPalette) => _visualPalette = visualPalette;
 
         private void Start()
         {
@@ -201,21 +204,11 @@ namespace FlowBlast.Gameplay.Conveyor
             var renderers = block.GetComponentsInChildren<Renderer>(true);
             for (int i = 0; i < renderers.Length; i++)
             {
-                SplineConveyor.ApplyColorToRenderer(renderers[i], _color);
+                SplineConveyor.ApplyColorToRenderer(renderers[i], _color, _visualPalette);
             }
 
             // Reset scale to (1,1,1) so a mid-dissolve scale doesn't persist into reuse
             block.transform.localScale = Vector3.one;
-
-            // BoxTapMover on the prefab may cache the color in a private field.
-            // Re-sync via reflection.
-            var tap = block.GetComponent<BoxTapMover>();
-            if (tap != null)
-            {
-                typeof(BoxTapMover)
-                    .GetField("boxColor", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                    ?.SetValue(tap, _color);
-            }
 
             return block;
         }
