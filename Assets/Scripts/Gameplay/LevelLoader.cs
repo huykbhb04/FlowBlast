@@ -83,9 +83,19 @@ namespace FlowBlast.Gameplay
                 Debug.LogWarning("[LevelLoader] SplineConveyor not assigned.");
 
             if (_bottomRayManager != null)
+            {
+                if (_gridManager != null)
+                {
+                    _bottomRayManager.SetSlotSpline(_gridManager.BottomSpline, _gridManager.BottomSplineIndex);
+                    _bottomRayManager.SetMovement(_gridManager.MoveSpeed, _gridManager.LoopSpline);
+                }
+
                 _bottomRayManager.SetupSlots(config.SlotCount, config.SlotCapacity);
+            }
             else
+            {
                 Debug.LogWarning("[LevelLoader] BottomRayManager not assigned.");
+            }
 
             int target = config.TargetBoxCount > 0
                 ? config.TargetBoxCount

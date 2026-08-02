@@ -45,15 +45,42 @@ namespace FlowBlast.Gameplay.Conveyor
             }
         }
 
+        private bool _hasRuntimeIdlePosition;
+        private Vector3 _runtimeIdlePosition;
+
         public bool IsEmpty => _currentBox == null;
         public bool IsOccupied => _currentBox != null;
         public bool IsCompleted => _container != null && _container.IsCompleted;
 
         public Vector3 GetIdlePosition()
         {
-            if (IdlePoint != null) return IdlePoint.position;
-            if (AnchorPoint != null) return AnchorPoint.position;
+            if (_hasRuntimeIdlePosition)
+            {
+                return _runtimeIdlePosition;
+            }
+
+            if (IdlePoint != null)
+            {
+                return IdlePoint.position;
+            }
+
+            if (AnchorPoint != null)
+            {
+                return AnchorPoint.position;
+            }
+
             return transform.position;
+        }
+
+        public void SetRuntimeIdlePosition(Vector3 position)
+        {
+            _runtimeIdlePosition = position;
+            _hasRuntimeIdlePosition = true;
+        }
+
+        public void ClearRuntimeIdlePosition()
+        {
+            _hasRuntimeIdlePosition = false;
         }
 
         public void AssignBox(GameObject box, BoxColor color, BoxProgressDisplay progressDisplay)

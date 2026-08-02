@@ -41,6 +41,7 @@ namespace FlowBlast.Gameplay.Conveyor
         private bool isMoving;
         private bool isJumping;
         private bool isTrapped;
+        private bool _hasLeftGrid;
         private float currentDistance;
         private float splineLength;
 
@@ -244,7 +245,12 @@ namespace FlowBlast.Gameplay.Conveyor
             }
 
             BoxTapMover mover = root.GetComponent<BoxTapMover>();
-            if (mover != null && mover != this && !mover.isMoving && !mover.isJumping && mover.TryGetGridPosition(out int row, out int col))
+            if (mover != null
+                && mover != this
+                && !mover._hasLeftGrid
+                && !mover.isMoving
+                && !mover.isJumping
+                && mover.TryGetGridPosition(out int row, out int col))
             {
                 liveBoxes.Add((row, col));
             }
@@ -338,6 +344,7 @@ namespace FlowBlast.Gameplay.Conveyor
                 }
                 Debug.Log($"[BoxTapMover] '{name}' → slot {assignedSlot.SlotIndex} (IdlePoint={(assignedSlot.IdlePoint != null ? assignedSlot.IdlePoint.name : "<null>")}), " +
                           $"slotWorld={assignedSlot.GetIdlePosition()}, ray OccupiedCount={ray.OccupiedCount}/{ray.Slots.Count}");
+                _hasLeftGrid = true;
                 NotifyGridBoxLeft();
             }
             else
@@ -364,13 +371,9 @@ namespace FlowBlast.Gameplay.Conveyor
             }
 
             transform.position = targetPosition;
-
-            // Tìm vị trí gần nhất trên spline rồi bắt đầu chạy từ đó
             currentDistance = FindNearestDistanceOnSpline(transform.position);
             isJumping = false;
-            isMoving = true;
-
-            ApplySplineTransform(DistanceToT(currentDistance));
+            isMoving = false;
         }
 
         private void NotifyGridBoxLeft()
@@ -471,6 +474,7 @@ namespace FlowBlast.Gameplay.Conveyor
         {
             isMoving = false;
             isJumping = false;
+            _hasLeftGrid = false;
             currentDistance = 0f;
         }
 

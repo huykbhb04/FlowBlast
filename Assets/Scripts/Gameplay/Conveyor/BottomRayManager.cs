@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Splines;
 using FlowBlast.Gameplay.Grid;
 
 namespace FlowBlast.Gameplay.Conveyor
@@ -18,22 +19,55 @@ namespace FlowBlast.Gameplay.Conveyor
     /// </summary>
     public class BottomRayManager : MonoBehaviour
     {
+        private const int MAX_BOX_COUNT = 4;
+
         public static BottomRayManager Instance;
 
-        [Header("Slots (assign 4 in inspector)")]
-        [SerializeField] private List<BoxSlot> _slots = new List<BoxSlot>(4);
+        private readonly List<BoxSlot> _slots = new List<BoxSlot>(MAX_BOX_COUNT);
+
+        [Header("Slot Layout")]
+        [SerializeField] private SplineContainer _slotSpline;
+        [SerializeField] private int _slotSplineIndex;
+        [Range(0f, 1f)]
+        [SerializeField] private float _slotStartT = 0.08f;
+        [Range(0f, 1f)]
+        [SerializeField] private float _slotEndT = 0.36f;
+        [SerializeField] private Vector3 _slotPositionOffset = Vector3.zero;
+        [SerializeField] private bool _autoEvenlySpaceSlots = true;
+
+        [Header("Movement")]
+        [SerializeField] private float _moveSpeed = 2f;
+        [SerializeField] private bool _loopSpline = true;
 
         [Header("Debug")]
         [SerializeField] private bool _logEvents = true;
 
+        private float _slotMovementOffsetT;
+        private float _slotSplineLength;
+
         public IReadOnlyList<BoxSlot> Slots => _slots;
 
-        public int OccupiedCount => _slots.Count(s => s != null && s.IsOccupied);
-        public bool IsFull => _slots.Count > 0 && _slots.All(s => s != null && s.IsOccupied);
+        public int OccupiedCount => _slots.Count(s => s != null && s.gameObject.activeInHierarchy && s.IsOccupied);
+        public bool IsFull => CountActiveSlots() > 0 && _slots
+            .Where(s => s != null && s.gameObject.activeInHierarchy)
+            .All(s => s.IsOccupied);
 
         private void Awake()
         {
             Instance = this;
+            EnsureRuntimeSlots();
+            ApplyEvenSlotSpacing();
+        }
+
+        private void OnValidate()
+        {
+            _slotEndT = Mathf.Max(_slotStartT, _slotEndT);
+        }
+
+        private void Update()
+        {
+            UpdateSlotMovement();
+            SnapOccupiedBoxesToSlots();
         }
 
         /// <summary>
@@ -43,7 +77,7 @@ namespace FlowBlast.Gameplay.Conveyor
         public BoxSlot GetNearestEmptySlot()
         {
             return _slots
-                .Where(s => s != null && s.IsEmpty)
+                .Where(s => s != null && s.gameObject.activeInHierarchy && s.IsEmpty)
                 .OrderBy(s => s.SlotIndex)
                 .FirstOrDefault();
         }
@@ -128,20 +162,205 @@ namespace FlowBlast.Gameplay.Conveyor
                 return;
             }
 
-            // Ensure the list is large enough to hold slotCount entries.
-            while (_slots.Count < slotCount)
+            int activeSlotCount = Mathf.Min(slotCount, MAX_BOX_COUNT);
+            if (slotCount > MAX_BOX_COUNT)
             {
-                _slots.Add(null);
+                Debug.LogWarning($"{name}: slotCount={slotCount} exceeds max {MAX_BOX_COUNT}. Clamping to {MAX_BOX_COUNT}.");
             }
 
-            // Deactivate any surplus slots beyond slotCount.
-            for (int i = slotCount; i < _slots.Count; i++)
+            EnsureRuntimeSlots();
+            UpdateActiveSlots(activeSlotCount);
+            ApplyEvenSlotSpacing();
+
+            Debug.Log($"{name}: SetupSlots — requested={slotCount}, active={activeSlotCount}, capacity={capacity}.");
+        }
+
+        public void SetSlotSpline(SplineContainer slotSpline, int splineIndex)
+        {
+            _slotSpline = slotSpline;
+            _slotSplineIndex = Mathf.Max(0, splineIndex);
+            _slotSplineLength = EstimateSlotSplineLength();
+            ApplyEvenSlotSpacing();
+        }
+
+        public void SetMovement(float moveSpeed, bool loopSpline)
+        {
+            _moveSpeed = Mathf.Max(0f, moveSpeed);
+            _loopSpline = loopSpline;
+        }
+
+        private void EnsureRuntimeSlots()
+        {
+            while (_slots.Count < MAX_BOX_COUNT)
             {
-                if (_slots[i] != null)
-                    _slots[i].gameObject.SetActive(false);
+                int slotIndex = _slots.Count;
+                GameObject slotObject = new GameObject($"BottomRaySlot_{slotIndex}");
+                slotObject.transform.SetParent(transform, false);
+
+                BoxSlot slot = slotObject.AddComponent<BoxSlot>();
+                slot.SlotIndex = slotIndex;
+                _slots.Add(slot);
             }
 
-            Debug.Log($"{name}: SetupSlots — count={slotCount}, capacity={capacity}, active slots: {_slots.Count}");
+            for (int i = 0; i < _slots.Count; i++)
+            {
+                BoxSlot slot = _slots[i];
+                if (slot == null)
+                {
+                    continue;
+                }
+
+                slot.SlotIndex = i;
+                slot.AnchorPoint = null;
+                slot.IdlePoint = null;
+            }
+        }
+
+        private void UpdateActiveSlots(int activeSlotCount)
+        {
+            for (int i = 0; i < _slots.Count; i++)
+            {
+                BoxSlot slot = _slots[i];
+                if (slot == null)
+                {
+                    continue;
+                }
+
+                slot.SlotIndex = i;
+                slot.gameObject.SetActive(i < activeSlotCount);
+            }
+        }
+
+        private void ApplyEvenSlotSpacing()
+        {
+            if (!_autoEvenlySpaceSlots || _slotSpline == null || _slots == null)
+            {
+                return;
+            }
+
+            int activeSlotCount = CountActiveSlots();
+            if (activeSlotCount <= 0)
+            {
+                return;
+            }
+
+            float startT = Mathf.Clamp01(_slotStartT);
+            float endT = Mathf.Clamp01(_slotEndT);
+            if (endT < startT)
+            {
+                endT = startT;
+            }
+
+            int placedSlotIndex = 0;
+            for (int i = 0; i < _slots.Count; i++)
+            {
+                BoxSlot slot = _slots[i];
+                if (slot == null || !slot.gameObject.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                float slotSpacingT = (endT - startT) / MAX_BOX_COUNT;
+                float baseT = startT + slotSpacingT * placedSlotIndex;
+                float t = NormalizeSplineT(baseT + _slotMovementOffsetT);
+                Vector3 position = _slotSpline.EvaluatePosition(_slotSplineIndex, t);
+                position += _slotPositionOffset;
+
+                slot.SetRuntimeIdlePosition(position);
+                placedSlotIndex++;
+            }
+        }
+
+        private void UpdateSlotMovement()
+        {
+            if (_slotSpline == null || _moveSpeed <= 0f)
+            {
+                return;
+            }
+
+            if (_slotSplineLength <= 0f)
+            {
+                _slotSplineLength = EstimateSlotSplineLength();
+            }
+
+            if (_slotSplineLength <= 0f)
+            {
+                return;
+            }
+
+            _slotMovementOffsetT += (_moveSpeed / _slotSplineLength) * Time.deltaTime;
+            if (_loopSpline)
+            {
+                _slotMovementOffsetT = Mathf.Repeat(_slotMovementOffsetT, 1f);
+            }
+            else
+            {
+                _slotMovementOffsetT = Mathf.Clamp01(_slotMovementOffsetT);
+            }
+
+            ApplyEvenSlotSpacing();
+        }
+
+        private void SnapOccupiedBoxesToSlots()
+        {
+            for (int i = 0; i < _slots.Count; i++)
+            {
+                BoxSlot slot = _slots[i];
+                if (slot == null || !slot.gameObject.activeInHierarchy || slot.CurrentBox == null)
+                {
+                    continue;
+                }
+
+                slot.CurrentBox.transform.position = slot.GetIdlePosition();
+            }
+        }
+
+        private float NormalizeSplineT(float t)
+        {
+            if (_loopSpline)
+            {
+                return Mathf.Repeat(t, 1f);
+            }
+
+            return Mathf.Clamp01(t);
+        }
+
+        private float EstimateSlotSplineLength()
+        {
+            if (_slotSpline == null)
+            {
+                return 0f;
+            }
+
+            const int SAMPLE_COUNT = 64;
+            float length = 0f;
+            Vector3 previousPosition = _slotSpline.EvaluatePosition(_slotSplineIndex, 0f);
+            for (int i = 1; i <= SAMPLE_COUNT; i++)
+            {
+                float t = (float)i / SAMPLE_COUNT;
+                Vector3 position = _slotSpline.EvaluatePosition(_slotSplineIndex, t);
+                length += Vector3.Distance(previousPosition, position);
+                previousPosition = position;
+            }
+
+            return length;
+        }
+
+        private int CountActiveSlots()
+        {
+            EnsureRuntimeSlots();
+
+            int activeSlotCount = 0;
+            for (int i = 0; i < _slots.Count; i++)
+            {
+                BoxSlot slot = _slots[i];
+                if (slot != null && slot.gameObject.activeInHierarchy)
+                {
+                    activeSlotCount++;
+                }
+            }
+
+            return activeSlotCount;
         }
 
         private float _slotCapacity = 100f;

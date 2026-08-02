@@ -76,7 +76,7 @@ namespace FlowBlast.Gameplay.Grid
         [Min(1)] public int BlocksPerCluster = 20;
 
         [Header("Slot & Target")]
-        [Range(1, 8)] public int SlotCount = 4;
+        [Range(1, 4)] public int SlotCount = 4;
         public float SlotCapacity = 100f;
 
         [Header("Block Sequence")]

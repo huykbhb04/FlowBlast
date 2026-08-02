@@ -20,15 +20,6 @@ namespace FlowBlast.Gameplay.Conveyor
         [Tooltip("If true and no BottomRayManager exists in any scene, create one with default settings.")]
         [SerializeField] private bool _autoSpawnIfMissing = true;
 
-        [Tooltip("Distance between the 4 default slot anchors, world units.")]
-        [SerializeField] private float _slotSpacing = 1.6f;
-
-        [Tooltip("Y offset for the slot anchors (height above the floor).")]
-        [SerializeField] private float _slotHeight = 0f;
-
-        [Tooltip("First slot anchor world position. If both X and Z are zero, falls back to (0,0,0).")]
-        [SerializeField] private Vector3 _spawnOrigin = new Vector3(6f, 0f, 0f);
-
         [Header("Debug")]
         [SerializeField] private bool _logSetup = true;
 
@@ -55,43 +46,12 @@ namespace FlowBlast.Gameplay.Conveyor
                 return;
             }
 
-            // Root container
             GameObject root = new GameObject("__FlowBlast_Auto_BottomRay");
             Object.DontDestroyOnLoad(root);
-
-            var manager = root.AddComponent<BottomRayManager>();
-
-            // Spawn 4 slot GameObjects with BoxSlot components.
-            var slotFields = typeof(BottomRayManager)
-                .GetField("_slots", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            var slotList = (System.Collections.Generic.List<BoxSlot>)slotFields.GetValue(manager);
-            slotList.Clear();
-
-            for (int i = 0; i < 4; i++)
-            {
-                GameObject slotGo = new GameObject($"AutoSlot_{i}");
-                slotGo.transform.SetParent(root.transform);
-                slotGo.transform.position = _spawnOrigin + new Vector3(i * _slotSpacing, _slotHeight, 0f);
-
-                BoxSlot slot = slotGo.AddComponent<BoxSlot>();
-                slot.SlotIndex = i;
-                slot.AnchorPoint = slotGo.transform; // self-anchor
-
-                slotList.Add(slot);
-            }
-
-            // BottomRayManager.Awake() already ran (we added the component above) but _slots was empty then.
-            // Re-assign so IsFull / GetNearestEmptySlot / PlaceBox work.
-            // Re-trigger lazy binding through reflection (Awake already set Instance once).
-            if (BottomRayManager.Instance == null)
-            {
-                var instanceField = typeof(BottomRayManager).GetField("Instance",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-                instanceField?.SetValue(null, manager);
-            }
+            root.AddComponent<BottomRayManager>();
 
             if (_logSetup)
-                Debug.Log($"[ConveyorAutoBootstrap] Spawned BottomRayManager with 4 default slots at spawnOrigin={_spawnOrigin}.");
+                Debug.Log("[ConveyorAutoBootstrap] Spawned BottomRayManager with 4 runtime slots.");
         }
 
         private void EnsureRayInputBlocker()
