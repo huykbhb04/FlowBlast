@@ -118,8 +118,6 @@ namespace FlowBlast.Gameplay.Conveyor
             }
 
             slot.AssignBox(box, color, progressDisplay);
-            // Snap box to slot idle position immediately; BoxTapMover handles smooth flight separately.
-            box.transform.position = slot.GetIdlePosition();
             Debug.Log($"[BottomRayManager] Placed {color} box into slot {slot.SlotIndex}. " +
                       $"Now occupied: {OccupiedCount}/{Slots.Count}.");
             return slot;
@@ -306,7 +304,10 @@ namespace FlowBlast.Gameplay.Conveyor
             for (int i = 0; i < _slots.Count; i++)
             {
                 BoxSlot slot = _slots[i];
-                if (slot == null || !slot.gameObject.activeInHierarchy || slot.CurrentBox == null)
+                if (slot == null
+                    || !slot.gameObject.activeInHierarchy
+                    || slot.CurrentBox == null
+                    || !slot.ShouldSnapCurrentBox)
                 {
                     continue;
                 }

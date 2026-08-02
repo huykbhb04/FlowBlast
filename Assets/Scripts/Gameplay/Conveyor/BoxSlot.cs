@@ -47,10 +47,12 @@ namespace FlowBlast.Gameplay.Conveyor
 
         private bool _hasRuntimeIdlePosition;
         private Vector3 _runtimeIdlePosition;
+        private bool _shouldSnapCurrentBox;
 
         public bool IsEmpty => _currentBox == null;
         public bool IsOccupied => _currentBox != null;
         public bool IsCompleted => _container != null && _container.IsCompleted;
+        public bool ShouldSnapCurrentBox => _shouldSnapCurrentBox;
 
         public Vector3 GetIdlePosition()
         {
@@ -83,9 +85,15 @@ namespace FlowBlast.Gameplay.Conveyor
             _hasRuntimeIdlePosition = false;
         }
 
+        public void SetBoxSnapEnabled(bool isEnabled)
+        {
+            _shouldSnapCurrentBox = isEnabled;
+        }
+
         public void AssignBox(GameObject box, BoxColor color, BoxProgressDisplay progressDisplay)
         {
             _currentBox = box;
+            _shouldSnapCurrentBox = false;
 
             // Unsubscribe from the previous container (if any) so we don't double-count
             // a completed event from the previous box placed in this slot.
@@ -160,6 +168,7 @@ namespace FlowBlast.Gameplay.Conveyor
                     }
                 }
                 _currentBox = null;
+                _shouldSnapCurrentBox = false;
             }
             if (_container != null)
             {

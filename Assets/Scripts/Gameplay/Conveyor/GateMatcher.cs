@@ -4,18 +4,6 @@ using FlowBlast.Gameplay.Grid;
 
 namespace FlowBlast.Gameplay.Conveyor
 {
-    /// <summary>
-    /// Top block conveyor runs along the top spline. When a top block reaches
-    /// the gate position, this matcher asks the bottom ray: "is there a Box
-    /// in the active slot?"
-    ///
-    ///   - Match (top color == box.RequiredColor) -> BoxContainer.AddProgress(+ProgressStep),
-    ///                                              top block is consumed (destroyed).
-    ///   - Miss  (colors differ OR no box)        -> top block continues along the spline
-    ///                                              (the conveyor keeps moving it).
-    ///   - When a container becomes IsCompleted   -> fly the box up out of the scene,
-    ///                                              clear its slot so a new box can land.
-    /// </summary>
     public class GateMatcher : MonoBehaviour
     {
         [Header("Refs")]
@@ -34,12 +22,6 @@ namespace FlowBlast.Gameplay.Conveyor
             if (_bottomRay == null)
                 _bottomRay = BottomRayManager.Instance;
             if (_splineConveyor == null) _splineConveyor = FindObjectOfType<SplineConveyor>();
-
-            // AUTO-DERIVE: if the Inspector didn't set _progressStep explicitly, take it
-            // from the top SplineConveyor so "n balls = 100%" is consistent regardless
-            // of how many balls the user spawned per color cluster.
-            // With 80 total balls split across 4 colors -> 20 balls/color -> 5%/ball.
-            // With 16 total balls split across 4 colors ->  4 balls/color -> 25%/ball.
             if (_progressStep <= 0f && _splineConveyor != null)
             {
                 _progressStep = _splineConveyor.PerBallProgressPercent;

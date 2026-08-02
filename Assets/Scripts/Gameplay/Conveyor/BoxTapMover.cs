@@ -374,6 +374,11 @@ namespace FlowBlast.Gameplay.Conveyor
             currentDistance = FindNearestDistanceOnSpline(transform.position);
             isJumping = false;
             isMoving = false;
+
+            if (assignedSlot != null)
+            {
+                assignedSlot.SetBoxSnapEnabled(true);
+            }
         }
 
         private void NotifyGridBoxLeft()
