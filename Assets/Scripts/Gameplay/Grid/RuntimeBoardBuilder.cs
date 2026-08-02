@@ -8,13 +8,6 @@ namespace FlowBlast.Gameplay.Grid
     {
         [Header("References")]
         [SerializeField] private GridManager _gridManager;
-
-        [Header("Prefab Fallbacks")]
-        [SerializeField] private GameObject _boxPrefab;
-        [SerializeField] private GameObject _wallPrefab;
-        [SerializeField] private GameObject _backgroundPrefab;
-        [SerializeField] private GameObject _exitPrefab;
-
         [Header("Runtime Spawn Root")]
         [Tooltip("All board objects generated from GridMapDataSO will be spawned under this Transform.")]
         [SerializeField] private Transform _mapRoot;
@@ -62,7 +55,7 @@ namespace FlowBlast.Gameplay.Grid
                     CellDataEntry data = config.GetCell(row, col);
                     Vector3 localPosition = GetLocalPosition(config, row, col);
 
-                    if (config.BuildBackground && TrySpawnCellObject(ResolvePrefab(config.BackgroundPrefab, _backgroundPrefab), _mapRoot, $"Cell_{row}_{col}_Background", localPosition, out _))
+                    if (config.BuildBackground && TrySpawnCellObject(config.BackgroundPrefab, _mapRoot, $"Cell_{row}_{col}_Background", localPosition, out _))
                     {
                         backgroundCount++;
                     }
@@ -77,14 +70,14 @@ namespace FlowBlast.Gameplay.Grid
                             break;
 
                         case CellType.Wall:
-                            if (TrySpawnCellObject(ResolvePrefab(config.WallPrefab, _wallPrefab), _mapRoot, $"Wall_{row}_{col}", localPosition, out _))
+                            if (TrySpawnCellObject(config.WallPrefab, _mapRoot, $"Wall_{row}_{col}", localPosition, out _))
                             {
                                 wallCount++;
                             }
                             break;
 
                         case CellType.Exit:
-                            if (TrySpawnCellObject(ResolvePrefab(config.ExitPrefab, _exitPrefab), _mapRoot, $"Exit_{row}_{col}", localPosition, out _))
+                            if (TrySpawnCellObject(config.ExitPrefab, _mapRoot, $"Exit_{row}_{col}", localPosition, out _))
                             {
                                 exitCount++;
                             }
@@ -123,17 +116,17 @@ namespace FlowBlast.Gameplay.Grid
 
         private bool NeedsMapRoot(GridMapDataSO config)
         {
-            bool hasBoxPrefab = ResolvePrefab(config.BoxPrefab, _boxPrefab) != null && config.GetCountOfType(CellType.Box) > 0;
-            bool hasWallPrefab = ResolvePrefab(config.WallPrefab, _wallPrefab) != null && config.GetCountOfType(CellType.Wall) > 0;
-            bool hasBackgroundPrefab = config.BuildBackground && ResolvePrefab(config.BackgroundPrefab, _backgroundPrefab) != null;
-            bool hasExitPrefab = ResolvePrefab(config.ExitPrefab, _exitPrefab) != null && config.GetCountOfType(CellType.Exit) > 0;
+            bool hasBoxPrefab = config.BoxPrefab != null && config.GetCountOfType(CellType.Box) > 0;
+            bool hasWallPrefab = config.WallPrefab != null && config.GetCountOfType(CellType.Wall) > 0;
+            bool hasBackgroundPrefab = config.BuildBackground && config.BackgroundPrefab != null;
+            bool hasExitPrefab = config.ExitPrefab != null && config.GetCountOfType(CellType.Exit) > 0;
 
             return hasBoxPrefab || hasWallPrefab || hasBackgroundPrefab || hasExitPrefab;
         }
 
         private bool SpawnBox(GridMapDataSO config, GridCell runtimeCell, CellDataEntry data, int row, int col, Vector3 localPosition)
         {
-            GameObject prefab = ResolvePrefab(config.BoxPrefab, _boxPrefab);
+            GameObject prefab = config.BoxPrefab;
             if (!TrySpawnCellObject(prefab, _mapRoot, $"Box_{row}_{col}", localPosition, out GameObject boxObject))
             {
                 return false;
@@ -181,11 +174,6 @@ namespace FlowBlast.Gameplay.Grid
             instance.transform.localRotation = Quaternion.Euler(_cellRotationEuler);
             _spawnedObjects.Add(instance);
             return true;
-        }
-
-        private GameObject ResolvePrefab(GameObject configPrefab, GameObject fallbackPrefab)
-        {
-            return configPrefab != null ? configPrefab : fallbackPrefab;
         }
 
         private Vector3 GetLocalPosition(GridMapDataSO config, int row, int col)
