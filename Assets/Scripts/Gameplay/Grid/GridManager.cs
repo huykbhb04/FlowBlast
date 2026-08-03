@@ -40,6 +40,7 @@ namespace FlowBlast.Gameplay.Grid
         private readonly List<BoxInfo> movingBoxes = new List<BoxInfo>();
         private readonly BoardBoxRegistry _boxRegistry = new BoardBoxRegistry();
         private readonly Dictionary<BoosterType, IBooster> _boosters = new Dictionary<BoosterType, IBooster>();
+        private bool _isHandBoosterActive;
 
         public event Action OnBoardStateChanged;
 
@@ -75,6 +76,7 @@ namespace FlowBlast.Gameplay.Grid
         {
             _boosters.Clear();
             RegisterBooster(new ShuffleBooster(this, new UnityShuffleRandomProvider()));
+            RegisterBooster(new HandBooster(this));
         }
 
         private void RegisterBooster(IBooster booster)
@@ -89,6 +91,7 @@ namespace FlowBlast.Gameplay.Grid
 
         private void LoadMapFromSO()
         {
+            _isHandBoosterActive = false;
             _boxRegistry.Clear();
             gridMap = mapDataSO != null
                 ? mapDataSO.ToGridMapData()
@@ -280,6 +283,48 @@ namespace FlowBlast.Gameplay.Grid
             }
         }
 
+        public bool HasAnyBoxOnGrid()
+        {
+            if (gridMap == null)
+            {
+                return false;
+            }
+
+            for (int row = 0; row < gridMap.Rows; row++)
+            {
+                for (int col = 0; col < gridMap.Cols; col++)
+                {
+                    GridCell cell = gridMap.GetCell(row, col);
+                    if (cell != null && cell.Type == CellType.Box)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        public void ActivateHandBooster()
+        {
+            _isHandBoosterActive = true;
+            OnBoardStateChanged?.Invoke();
+        }
+
+        public bool TryConsumeHandBoosterOverride()
+        {
+            if (!_isHandBoosterActive)
+            {
+                return false;
+            }
+
+            _isHandBoosterActive = false;
+            OnBoardStateChanged?.Invoke();
+            return true;
+        }
+
+        public bool IsHandBoosterActive => _isHandBoosterActive;
+
         public bool CanUseBooster(BoosterType boosterType)
         {
             return _boosters.TryGetValue(boosterType, out IBooster booster) && booster.CanUse();
@@ -305,6 +350,11 @@ namespace FlowBlast.Gameplay.Grid
         public bool UseShuffleBooster()
         {
             return UseBooster(BoosterType.Shuffle);
+        }
+
+        public bool UseHandBooster()
+        {
+            return UseBooster(BoosterType.Hand);
         }
 
         public GridMapData GetGridMap() => gridMap;

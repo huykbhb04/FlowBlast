@@ -18,6 +18,12 @@ namespace FlowBlast.Data
         /// <summary>Player's coin balance.</summary>
         public int Coins = 0;
 
+        /// <summary>Available Shuffle Booster uses.</summary>
+        public int ShuffleBoosterCount = 3;
+
+        /// <summary>Available Hand Booster uses.</summary>
+        public int HandBoosterCount = 3;
+
         /// <summary>Sound effects toggle.</summary>
         public bool IsSfxOn = true;
 

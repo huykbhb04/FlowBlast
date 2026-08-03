@@ -1,5 +1,6 @@
 using UnityEngine;
 using FlowBlast.Data;
+using FlowBlast.Gameplay.Boosters;
 
 namespace FlowBlast.Managers
 {
@@ -18,6 +19,9 @@ namespace FlowBlast.Managers
         public static SaveManager Instance { get; private set; }
 
         private const string FILE_NAME = "flowblast_save.json";
+
+        [Header("Boosters")]
+        [SerializeField] private BoosterInventoryConfigSO _boosterInventoryConfig;
 
         [Header("Debug")]
         [SerializeField] private bool _logIO = true;
@@ -95,12 +99,12 @@ namespace FlowBlast.Managers
                 catch (System.Exception ex)
                 {
                     Debug.LogError($"[SaveManager] Load failed: {ex.Message}. Creating fresh save.");
-                    _data = new SaveData();
+                    _data = CreateDefaultSaveData();
                 }
             }
             else
             {
-                _data = new SaveData();
+                _data = CreateDefaultSaveData();
                 if (_logIO) Debug.Log("[SaveManager] No save file found — starting fresh.");
             }
         }
@@ -112,8 +116,20 @@ namespace FlowBlast.Managers
         {
             if (System.IO.File.Exists(_filePath))
                 System.IO.File.Delete(_filePath);
-            _data = new SaveData();
+            _data = CreateDefaultSaveData();
             if (_logIO) Debug.Log("[SaveManager] Save data deleted.");
+        }
+
+        private SaveData CreateDefaultSaveData()
+        {
+            SaveData saveData = new SaveData();
+            if (_boosterInventoryConfig != null)
+            {
+                saveData.ShuffleBoosterCount = _boosterInventoryConfig.GetDefaultCount(BoosterType.Shuffle);
+                saveData.HandBoosterCount = _boosterInventoryConfig.GetDefaultCount(BoosterType.Hand);
+            }
+
+            return saveData;
         }
 
         // ─── Economy Helpers ────────────────────────────────────────────

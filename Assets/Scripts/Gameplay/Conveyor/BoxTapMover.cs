@@ -292,12 +292,6 @@ namespace FlowBlast.Gameplay.Conveyor
         {
             SyncTrappedStateFromGrid();
 
-            if (isTrapped)
-            {
-                Debug.Log($"[BoxTapMover] BLOCKED: '{name}' is TRAPPED (no escapable neighbour) - cannot leave grid.");
-                return;
-            }
-
             RayInputBlocker blocker = RayInputBlocker.Instance;
             if (blocker != null && blocker.IsBlocked)
             {
@@ -308,6 +302,19 @@ namespace FlowBlast.Gameplay.Conveyor
             if (isMoving || isJumping)
             {
                 return;
+            }
+
+            bool shouldUseHandBooster = gridManager != null && gridManager.IsHandBoosterActive;
+            if (isTrapped && !shouldUseHandBooster)
+            {
+                Debug.Log($"[BoxTapMover] BLOCKED: '{name}' is TRAPPED (no escapable neighbour) - cannot leave grid.");
+                return;
+            }
+
+            if (shouldUseHandBooster)
+            {
+                gridManager.TryConsumeHandBoosterOverride();
+                Debug.Log($"[BoxTapMover] Hand Booster used on '{name}' - trapped rule ignored once.");
             }
 
             RaiseTapEvents();
