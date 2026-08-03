@@ -85,7 +85,7 @@ Assets/
 
 ## Cài đặt
 
-1. Clone repository
+1. Clone repository nhánh Huy-Final
 2. Mở project bằng Unity Editor
 3. Unity sẽ tự động resolve packages từ `manifest.json`
 4. Build settings:
