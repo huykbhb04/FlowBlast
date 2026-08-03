@@ -9,6 +9,7 @@ namespace FlowBlast.Gameplay.Conveyor
         [Header("Refs")]
         [SerializeField] private BottomRayManager _bottomRay;
         [SerializeField] private SplineConveyor _splineConveyor;
+        [SerializeField] private BlockCollectEffectSpawner _collectEffectSpawner;
 
         private const float DEFAULT_PROGRESS_STEP = 5f;
 
@@ -20,6 +21,8 @@ namespace FlowBlast.Gameplay.Conveyor
             if (_bottomRay == null)
                 _bottomRay = BottomRayManager.Instance;
             if (_splineConveyor == null) _splineConveyor = FindObjectOfType<SplineConveyor>();
+            if (_collectEffectSpawner == null) _collectEffectSpawner = GetComponent<BlockCollectEffectSpawner>();
+            SyncCollectEffectPalette();
         }
 
         /// <summary>
@@ -95,6 +98,7 @@ namespace FlowBlast.Gameplay.Conveyor
                 if (_logEvents)
                     Debug.Log($"{nameof(GateMatcher)}: MATCH {topColor} -> slot {slot.SlotIndex} progress={container.Progress}");
 
+                PlayCollectEffect(topBlock.transform.position, slot, topColor);
                 ConsumeTopBlockImmediately(topBlock);
                 AddProgressAfterBlockConsumed(slot, container, topColor);
             }
@@ -141,6 +145,31 @@ namespace FlowBlast.Gameplay.Conveyor
             }
 
             return DEFAULT_PROGRESS_STEP;
+        }
+
+        private void PlayCollectEffect(Vector3 startPosition, BoxSlot slot, BoxColor color)
+        {
+            if (_collectEffectSpawner == null || slot == null)
+            {
+                return;
+            }
+
+            Transform target = slot.GetCollectTarget();
+            if (target == null)
+            {
+                return;
+            }
+
+            SyncCollectEffectPalette();
+            _collectEffectSpawner.Play(startPosition, target, color);
+        }
+
+        private void SyncCollectEffectPalette()
+        {
+            if (_collectEffectSpawner != null && _splineConveyor != null)
+            {
+                _collectEffectSpawner.SetVisualPalette(_splineConveyor.VisualPalette);
+            }
         }
 
         private void ConsumeTopBlockImmediately(GameObject topBlock)

@@ -30,6 +30,7 @@ namespace FlowBlast.Gameplay.Conveyor
 
         [Header("State")]
         [SerializeField] private GameObject _currentBox;
+        [SerializeField] private Transform _collectTarget;
         [SerializeField] private BoxContainer _container;
 
         public GameObject CurrentBox => _currentBox;
@@ -53,6 +54,16 @@ namespace FlowBlast.Gameplay.Conveyor
         public bool IsOccupied => _currentBox != null;
         public bool IsCompleted => _container != null && _container.IsCompleted;
         public bool ShouldSnapCurrentBox => _shouldSnapCurrentBox;
+
+        public Transform GetCollectTarget()
+        {
+            if (_collectTarget != null)
+            {
+                return _collectTarget;
+            }
+
+            return _currentBox != null ? _currentBox.transform : transform;
+        }
 
         public Vector3 GetIdlePosition()
         {
@@ -93,6 +104,7 @@ namespace FlowBlast.Gameplay.Conveyor
         public void AssignBox(GameObject box, BoxColor color, BoxProgressDisplay progressDisplay)
         {
             _currentBox = box;
+            _collectTarget = null;
             _shouldSnapCurrentBox = false;
 
             // Unsubscribe from the previous container (if any) so we don't double-count
@@ -109,6 +121,12 @@ namespace FlowBlast.Gameplay.Conveyor
 
             if (box != null)
             {
+                BoxTapMover boxMover = box.GetComponent<BoxTapMover>();
+                if (boxMover != null)
+                {
+                    _collectTarget = boxMover.CollectTarget;
+                }
+
                 if (progressDisplay != null)
                 {
                     progressDisplay.Bind(_container);

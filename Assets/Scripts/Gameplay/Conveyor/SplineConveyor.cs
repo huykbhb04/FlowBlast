@@ -822,6 +822,7 @@ namespace FlowBlast.Gameplay.Conveyor
         /// on the top spline contains this many blocks before the color rolls over.
         /// </summary>
         public int BlocksPerCluster => blocksPerCluster;
+        public BoxVisualPaletteSO VisualPalette => visualPalette;
 
         /// <summary>
         /// Number of distinct colors in the active palette (blockPrefabs.Count).

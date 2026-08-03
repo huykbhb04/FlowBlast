@@ -13,6 +13,7 @@ namespace FlowBlast.Gameplay.Conveyor
         [SerializeField] private BoxVisualView boxVisualView;
         [SerializeField] private BoxVisualPaletteSO visualPalette;
         [SerializeField] private BoxProgressDisplay progressDisplay;
+        [SerializeField] private Transform collectTarget;
 
         [Header("Spline")]
         [SerializeField] private SplineContainer splineContainer;
@@ -123,6 +124,7 @@ namespace FlowBlast.Gameplay.Conveyor
         }
 
         public BoxProgressDisplay ProgressDisplay => progressDisplay;
+        public Transform CollectTarget => collectTarget != null ? collectTarget : transform;
 
         public bool TryGetGridPosition(out int row, out int col)
         {
