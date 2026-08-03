@@ -32,17 +32,12 @@ namespace FlowBlast.Gameplay.Grid
         private SerializedProperty _availableColorsProp;
         private SerializedProperty _boxPrefabProp;
         private SerializedProperty _wallPrefabProp;
-        private SerializedProperty _backgroundPrefabProp;
-        private SerializedProperty _slotPrefabProp;
-        private SerializedProperty _exitPrefabProp;
         private SerializedProperty _cellSizeProp;
         private SerializedProperty _cellSpacingProp;
         private SerializedProperty _boardOriginProp;
-        private SerializedProperty _buildBackgroundProp;
 
         // Scene-only references (not saved in the SO)
         [SerializeField] private Transform _boardRoot;
-        [SerializeField] private GameObject _backgroundPrefab;
 
         // Cached GUI styles (built lazily, first OnInspectorGUI call)
         private GUIStyle _cellLabelStyle;
@@ -65,13 +60,9 @@ namespace FlowBlast.Gameplay.Grid
             _availableColorsProp = serializedObject.FindProperty("AvailableColors");
             _boxPrefabProp = serializedObject.FindProperty("BoxPrefab");
             _wallPrefabProp = serializedObject.FindProperty("WallPrefab");
-            _backgroundPrefabProp = serializedObject.FindProperty("BackgroundPrefab");
-            _slotPrefabProp = serializedObject.FindProperty("SlotPrefab");
-            _exitPrefabProp = serializedObject.FindProperty("ExitPrefab");
             _cellSizeProp = serializedObject.FindProperty("CellSize");
             _cellSpacingProp = serializedObject.FindProperty("CellSpacing");
             _boardOriginProp = serializedObject.FindProperty("BoardOrigin");
-            _buildBackgroundProp = serializedObject.FindProperty("BuildBackground");
         }
 
         private void EnsureStyles()
@@ -299,9 +290,6 @@ namespace FlowBlast.Gameplay.Grid
 
             EditorGUILayout.PropertyField(_wallPrefabProp, new GUIContent("Wall Prefab"));
             EditorGUILayout.PropertyField(_boxPrefabProp, new GUIContent("Box Prefab"));
-            EditorGUILayout.PropertyField(_exitPrefabProp, new GUIContent("Exit Prefab"));
-            EditorGUILayout.PropertyField(_slotPrefabProp, new GUIContent("Slot Prefab"));
-            EditorGUILayout.PropertyField(_backgroundPrefabProp, new GUIContent("Background Prefab"));
 
             EditorGUILayout.Space(4);
             _boardRoot = (Transform)EditorGUILayout.ObjectField(
@@ -319,7 +307,6 @@ namespace FlowBlast.Gameplay.Grid
             EditorGUILayout.PropertyField(_cellSizeProp, new GUIContent("Cell Size"));
             EditorGUILayout.PropertyField(_cellSpacingProp, new GUIContent("Cell Spacing"));
             EditorGUILayout.PropertyField(_boardOriginProp, new GUIContent("Board Origin"));
-            EditorGUILayout.PropertyField(_buildBackgroundProp, new GUIContent("Build Background"));
 
             EditorGUILayout.Space(6);
             EditorGUILayout.BeginHorizontal();
@@ -355,7 +342,6 @@ namespace FlowBlast.Gameplay.Grid
             {
                 case CellType.Wall: return _map.WallPrefab;
                 case CellType.Box: return _map.BoxPrefab;
-                case CellType.Exit: return _map.ExitPrefab;
                 default: return null;
             }
         }
@@ -393,14 +379,6 @@ namespace FlowBlast.Gameplay.Grid
                     if (cell.Type == CellType.Box)
                         ApplyBoxVisual(instance, cell.Color);
                 }
-            }
-
-            if (_map.BuildBackground && _map.BackgroundPrefab != null)
-            {
-                GameObject bg = (GameObject)PrefabUtility.InstantiatePrefab(_map.BackgroundPrefab, _boardRoot);
-                Undo.RegisterCreatedObjectUndo(bg, "Build Board");
-                bg.transform.localPosition = _map.BoardOrigin;
-                bg.name = "Background";
             }
         }
 

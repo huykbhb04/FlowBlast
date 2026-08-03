@@ -57,18 +57,14 @@ namespace FlowBlast.Gameplay.Grid
         [Header("Box Colors")]
         public List<BoxColor> AvailableColors = BoxColorUtility.CreateDefaultPalette();
 
-        [Header("Scene Prefabs (optional - auto-detected by name if empty)")]
+        [Header("Scene Prefabs")]
         public GameObject BoxPrefab;
         public GameObject WallPrefab;
-        public GameObject BackgroundPrefab;
-        public GameObject SlotPrefab;
-        public GameObject ExitPrefab;
 
         [Header("Board Build Settings")]
         public float CellSize = 1f;
         public float CellSpacing = 1f;
         public Vector3 BoardOrigin = Vector3.zero;
-        public bool BuildBackground = true;
 
         [Header("Conveyor")]
         [Min(0.1f)] public float BlockSpeed = 3f;

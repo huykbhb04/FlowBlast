@@ -44,8 +44,6 @@ namespace FlowBlast.Gameplay.Grid
 
             int boxCount = 0;
             int wallCount = 0;
-            int exitCount = 0;
-            int backgroundCount = 0;
 
             for (int row = 0; row < config.Rows; row++)
             {
@@ -54,11 +52,6 @@ namespace FlowBlast.Gameplay.Grid
                     GridCell runtimeCell = gridMap.GetCell(row, col);
                     CellDataEntry data = config.GetCell(row, col);
                     Vector3 localPosition = GetLocalPosition(config, row, col);
-
-                    if (config.BuildBackground && TrySpawnCellObject(config.BackgroundPrefab, _mapRoot, $"Cell_{row}_{col}_Background", localPosition, out _))
-                    {
-                        backgroundCount++;
-                    }
 
                     switch (data.Type)
                     {
@@ -75,18 +68,11 @@ namespace FlowBlast.Gameplay.Grid
                                 wallCount++;
                             }
                             break;
-
-                        case CellType.Exit:
-                            if (TrySpawnCellObject(config.ExitPrefab, _mapRoot, $"Exit_{row}_{col}", localPosition, out _))
-                            {
-                                exitCount++;
-                            }
-                            break;
                     }
                 }
             }
 
-            Debug.Log($"[RuntimeBoardBuilder] Built board '{config.MapName}' ({config.Rows}x{config.Cols}) - boxes={boxCount}, walls={wallCount}, exits={exitCount}, backgrounds={backgroundCount}.");
+            Debug.Log($"[RuntimeBoardBuilder] Built board '{config.MapName}' ({config.Rows}x{config.Cols}) - boxes={boxCount}, walls={wallCount}.");
         }
 
         public void Clear()
@@ -118,10 +104,8 @@ namespace FlowBlast.Gameplay.Grid
         {
             bool hasBoxPrefab = config.BoxPrefab != null && config.GetCountOfType(CellType.Box) > 0;
             bool hasWallPrefab = config.WallPrefab != null && config.GetCountOfType(CellType.Wall) > 0;
-            bool hasBackgroundPrefab = config.BuildBackground && config.BackgroundPrefab != null;
-            bool hasExitPrefab = config.ExitPrefab != null && config.GetCountOfType(CellType.Exit) > 0;
 
-            return hasBoxPrefab || hasWallPrefab || hasBackgroundPrefab || hasExitPrefab;
+            return hasBoxPrefab || hasWallPrefab;
         }
 
         private bool SpawnBox(GridMapDataSO config, GridCell runtimeCell, CellDataEntry data, int row, int col, Vector3 localPosition)
