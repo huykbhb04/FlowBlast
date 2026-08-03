@@ -55,9 +55,9 @@ namespace FlowBlast.Gameplay
 
             if (SaveManager.Instance != null && _allLevels != null && _allLevels.Length > 0)
             {
-                int idx = SaveManager.Instance.Data.CurrentLevel;
-                if (idx >= 0 && idx < _allLevels.Length)
-                    levelToLoad = _allLevels[idx];
+                int index = Mathf.Clamp(SaveManager.Instance.Data.CurrentLevel, 0, _allLevels.Length - 1);
+                SaveManager.Instance.Data.CurrentLevel = index;
+                levelToLoad = _allLevels[index];
             }
 
             if (levelToLoad != null)
@@ -132,7 +132,7 @@ namespace FlowBlast.Gameplay
                 _loseTrigger.ResetTrigger();
             }
 
-            Debug.Log($"[LevelLoader] Loaded level: {config.MapName} (index={config.LevelIndex}, target={target})");
+            Debug.Log($"[LevelLoader] Loaded level: {config.MapName} (arrayIndex={GetCurrentLevelIndex()}, assetIndex={config.LevelIndex}, target={target})");
         }
 
         public void ReloadLevel()
@@ -197,18 +197,47 @@ namespace FlowBlast.Gameplay
 
         private int GetCurrentLevelIndex()
         {
-            if (_currentConfig != null)
+            int currentArrayIndex = GetCurrentLevelArrayIndex();
+            if (currentArrayIndex >= 0)
             {
-                return _currentConfig.LevelIndex;
+                return currentArrayIndex;
             }
 
             SaveManager saveManager = SaveManager.Instance;
             if (saveManager != null)
             {
-                return saveManager.Data.CurrentLevel;
+                return Mathf.Clamp(saveManager.Data.CurrentLevel, 0, GetLastLevelIndex());
             }
 
             return 0;
+        }
+
+        private int GetCurrentLevelArrayIndex()
+        {
+            if (_currentConfig == null || _allLevels == null)
+            {
+                return -1;
+            }
+
+            for (int i = 0; i < _allLevels.Length; i++)
+            {
+                if (_allLevels[i] == _currentConfig)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private int GetLastLevelIndex()
+        {
+            if (_allLevels == null || _allLevels.Length == 0)
+            {
+                return 0;
+            }
+
+            return _allLevels.Length - 1;
         }
 
         public GridMapDataSO CurrentConfig => _currentConfig;

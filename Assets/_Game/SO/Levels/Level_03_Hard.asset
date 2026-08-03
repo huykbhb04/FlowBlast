@@ -19,12 +19,6 @@ MonoBehaviour:
     Color: 0
   - Type: 1
     Color: 0
-  - Type: 2
-    Color: 0
-  - Type: 2
-    Color: 0
-  - Type: 2
-    Color: 0
   - Type: 1
     Color: 1
   - Type: 2
@@ -44,16 +38,22 @@ MonoBehaviour:
   - Type: 2
     Color: 0
   - Type: 1
-    Color: 3
-  - Type: 2
-    Color: 0
-  - Type: 1
     Color: 4
+  - Type: 1
+    Color: 3
+  - Type: 1
+    Color: 5
+  - Type: 2
+    Color: 0
   - Type: 2
     Color: 0
   - Type: 2
     Color: 0
   - Type: 1
+    Color: 7
+  - Type: 1
+    Color: 6
+  - Type: 2
     Color: 0
   - Type: 2
     Color: 0
@@ -73,13 +73,13 @@ MonoBehaviour:
   StarThreshold2: 3
   StarThreshold3: 5
   VisualPalette: {fileID: 11400000, guid: fd7faaf907e871c4bb94edd826b7af5c, type: 2}
-  AvailableColors: 000000000100000002000000030000000400000005000000
+  AvailableColors: 0000000001000000020000000300000004000000050000000600000007000000
   BoxPrefab: {fileID: 9168233812504392444, guid: 9d0a33004b84c0348b0af3e3c24dfe40, type: 3}
   WallPrefab: {fileID: 6441360976554641272, guid: b77498a17c7640b4cb883e763a1bcbc8, type: 3}
   CellSize: 1
   CellSpacing: 1
   BoardOrigin: {x: 0, y: 0, z: 0}
-  BlockSpeed: 5
+  BlockSpeed: 2
   BlocksPerCluster: 20
   SlotCount: 8
   SlotCapacity: 100

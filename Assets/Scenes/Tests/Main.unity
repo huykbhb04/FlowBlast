@@ -2832,7 +2832,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FlowBlast.Gameplay.Conveyor.LoseTrigger
   _bottomRay: {fileID: 0}
-  _gridManager: {fileID: 0}
+  _topConveyor: {fileID: 0}
   _delayBeforePopup: 0.5
   _logTrigger: 1
 --- !u!4 &1076666214
@@ -6625,8 +6625,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b2c3d4e5f6a708192a3b4c5d6e7f8901, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FlowBlast.Gameplay.Conveyor.WinTrigger
-  delayBeforeNextLevel: 0.8
-  logTrigger: 1
+  _delayBeforeWinPopup: 0.8
+  _logTrigger: 1
 --- !u!1001 &1906795276
 PrefabInstance:
   m_ObjectHideFlags: 0
