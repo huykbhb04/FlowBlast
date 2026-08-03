@@ -67,3 +67,11 @@ MonoBehaviour:
   CellSpacing: 0.2
   BoardOrigin: {x: 0, y: 0, z: 0}
   BuildBackground: 1
+  BlockSpeed: 3
+  BlocksPerSecond: 1
+  BlocksPerCluster: 20
+  SlotCount: 4
+  SlotCapacity: 100
+  DeriveBlockSequenceFromGrid: 1
+  BlockSequenceOverride: 
+  TargetBoxCount: 0

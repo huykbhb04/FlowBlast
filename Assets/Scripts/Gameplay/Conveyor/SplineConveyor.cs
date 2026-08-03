@@ -9,7 +9,7 @@ namespace FlowBlast.Gameplay.Conveyor
     public class ColoredBlockPrefab
     {
         public GameObject Prefab;
-        public BoxColor Color = BoxColor.Red;
+        public BoxColor Color = BoxColorUtility.DefaultColor;
     }
 
     /// <summary>
@@ -25,8 +25,18 @@ namespace FlowBlast.Gameplay.Conveyor
         {
             IsConsumed = true;
         }
+
+        /// <summary>
+        /// Reset consumed flag so the block is eligible for matching again after
+        /// being recycled from the BlockPool.
+        /// </summary>
+        public void Reset()
+        {
+            IsConsumed = false;
+        }
     }
 
+    [DefaultExecutionOrder(-100)]
     public class SplineConveyor : MonoBehaviour
     {
         [Header("Spline")]
@@ -36,6 +46,9 @@ namespace FlowBlast.Gameplay.Conveyor
         [Header("Blocks (one entry per color used by the map)")]
         [SerializeField]
         private List<ColoredBlockPrefab> blockPrefabs = new List<ColoredBlockPrefab>();
+
+        [Header("Block Visual")]
+        [SerializeField] private BoxVisualPaletteSO visualPalette;
 
         [Header("Block count")]
         [Tooltip("Total number of blocks to spawn on the spline.")]
@@ -63,12 +76,6 @@ namespace FlowBlast.Gameplay.Conveyor
         [SerializeField] private float moveSpeed = 2f;
         [SerializeField] private bool loop = true;
 
-        [Header("Gate Timing")]
-        [Tooltip("How long the dissolve / consume animation runs when a top ball matches " +
-                 "the gate. Must match BlockDissolveEffect.duration and BoxExitAnimator.duration. " +
-                 "Used to compute the minimum spacing so two balls can never reach the gate " +
-                 "faster than this duration (avoids visible 'skip' when 2 balls overlap).")]
-        [SerializeField] private float dissolveDuration = 0.6f;
 
         [Header("Rotation")]
         [SerializeField] private bool rotateToDirection = true;
@@ -80,12 +87,18 @@ namespace FlowBlast.Gameplay.Conveyor
         [Header("Auto-sync with GridMapDataSO")]
         [Tooltip("If true, on Start() pull AvailableColors from GridManager and spawn one block per color (overrides blockPrefabs).")]
         [SerializeField] private bool autoSyncFromGridManager = true;
+        [SerializeField] private bool spawnOnStart;
 
         [Header("Cluster Wrap Guard")]
         [Tooltip("If true, blocksPerCluster is capped automatically so each cluster fits within 1/paletteSize of the spline. " +
                  "If false, the Inspector value of blocksPerCluster is respected even if clusters wrap around the spline " +
                  "(useful for long splines or when you want exactly N balls/color regardless of geometry).")]
         [SerializeField] private bool capBlocksPerClusterToSpline = false;
+
+        [Header("Pooling")]
+        [Tooltip("One BlockPool component per color in blockPrefabs, in the same order. " +
+                 "Set via SetBlockPools() or assign in Inspector.")]
+        [SerializeField] private BlockPool[] _poolsPerColor;
 
         [Header("Gate")]
         [Tooltip("World transform marking the gate position on the spline. When a top block crosses this point, GateMatcher fires.")]
@@ -109,6 +122,75 @@ namespace FlowBlast.Gameplay.Conveyor
 
         private float splineLength = 0f;
         private float gateDistance = -1f;
+        private GridMapDataSO _pendingConfig; // deferred from SetupFromConfig before Start() ran
+
+        public event System.Action OnBlockStateChanged;
+
+        /// <summary>
+        /// Register block pools before Start() is called (e.g. from an Awake bootstrapper).
+        /// The pools array must match blockPrefabs in length and color order.
+        /// </summary>
+        public void SetBlockPools(BlockPool[] pools)
+        {
+            _poolsPerColor = pools;
+        }
+
+        /// <summary>
+        /// Get the BlockPool that manages the given color. Returns null if not found.
+        /// </summary>
+        public BlockPool GetPoolForColor(BoxColor color)
+        {
+            if (_poolsPerColor == null) return null;
+            for (int i = 0; i < _poolsPerColor.Length; i++)
+            {
+                if (_poolsPerColor[i] != null && _poolsPerColor[i].Color == color)
+                    return _poolsPerColor[i];
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Despawn a block back to its color pool if pooling is configured;
+        /// otherwise fall back to a plain Destroy.  Call this instead of
+        /// Destroy(block.gameObject) so blocks are recycled between level restarts.
+        /// </summary>
+        private void DespawnFromPool(Transform blockTransform)
+        {
+            if (blockTransform == null) return;
+
+            ConveyorColoredBlock colored = blockTransform.GetComponent<ConveyorColoredBlock>();
+            if (colored != null)
+            {
+                BlockPool pool = GetPoolForColor(colored.Color);
+                if (pool != null)
+                {
+                    pool.Despawn(colored);
+                    return;
+                }
+            }
+
+            Destroy(blockTransform.gameObject);
+        }
+
+        public void ConsumeBlockImmediately(Transform blockTransform)
+        {
+            if (blockTransform == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < blocks.Count; i++)
+            {
+                if (blocks[i] == blockTransform)
+                {
+                    blocks[i] = null;
+                    break;
+                }
+            }
+
+            DespawnFromPool(blockTransform);
+            OnBlockStateChanged?.Invoke();
+        }
 
         private void Start()
         {
@@ -119,13 +201,8 @@ namespace FlowBlast.Gameplay.Conveyor
                 return;
             }
 
+            ResolveVisualPalette();
             ResolveBlockPrefabs();
-            if (blockPrefabs.Count == 0 || blockPrefabs[0].Prefab == null)
-            {
-                Debug.LogError($"{name}: No valid block prefabs resolved (need at least one entry with a Prefab).");
-                enabled = false;
-                return;
-            }
 
             // SAFETY: Force a strict clustered layout. The top conveyor must NEVER show
             // interleaved colors to the player, otherwise the gate match logic looks broken.
@@ -140,15 +217,37 @@ namespace FlowBlast.Gameplay.Conveyor
 
             BuildSplineCache();
 
+            if (!spawnOnStart && _pendingConfig == null)
+            {
+                return;
+            }
+
+            if (blockPrefabs.Count == 0 || blockPrefabs[0].Prefab == null)
+            {
+                Debug.LogError($"{name}: No valid block prefabs resolved (need at least one entry with a Prefab).");
+                enabled = false;
+                return;
+            }
+
+            // If LevelLoader called SetupFromConfig() before Start(), honour that config
+            // instead of the Inspector defaults.
+            if (_pendingConfig != null)
+            {
+                Debug.Log($"{name}: applying deferred config from LevelLoader ({_pendingConfig.MapName}).");
+                var deferred = _pendingConfig;
+                _pendingConfig = null;
+                SetupFromConfig(deferred);
+                return;
+            }
+
             // SAFETY: Cap blocksPerCluster so each cluster fits within a single arc of
             // the spline (1/paletteSize of the loop). Otherwise blocks wrap multiple
             // times and colors visually overlap, looking like interleaved spawning.
             // Required: blocksPerCluster * effectiveSpacing <= splineLength / paletteSize.
-            // Use a generous spacing budget to keep gate smooth: max(moveSpeed * dissolveDuration, 0.5).
             {
                 int palCount = Mathf.Max(blockPrefabs.Count, 1);
                 float arcPerCluster = splineLength / palCount;
-                float safetySpacing = Mathf.Max(Mathf.Max(0.1f, moveSpeed * dissolveDuration), 0.5f);
+                float safetySpacing = Mathf.Max(spacing, 0.5f);
                 int safetyClusterSize = Mathf.Max(2, Mathf.FloorToInt(arcPerCluster / safetySpacing));
                 if (safetyClusterSize < 4) safetyClusterSize = 4; // need >= 4 to look like a cluster
                 if (capBlocksPerClusterToSpline && blocksPerCluster > safetyClusterSize)
@@ -176,7 +275,64 @@ namespace FlowBlast.Gameplay.Conveyor
             }
 
             ResolveGateDistance();
+            SetupBlockPools();
             SpawnBlocks();
+        }
+
+        /// <summary>
+        /// Auto-create BlockPool components matching the resolved blockPrefabs palette.
+        /// Called from Start() after ResolveBlockPrefabs() so we know the palette size.
+        /// If _poolsPerColor is already set in the Inspector, that array is respected.
+        /// </summary>
+        private void SetupBlockPools()
+        {
+            if (blockPrefabs == null || blockPrefabs.Count == 0)
+            {
+                Debug.LogWarning($"{name}: blockPrefabs is empty, skipping pool setup.");
+                return;
+            }
+
+            if (_poolsPerColor != null && _poolsPerColor.Length == blockPrefabs.Count)
+            {
+                // Inspector-assigned pools: just refresh their color and warm size.
+                for (int i = 0; i < _poolsPerColor.Length; i++)
+                {
+                    if (_poolsPerColor[i] != null)
+                    {
+                        _poolsPerColor[i].SetColor(blockPrefabs[i].Color);
+                        _poolsPerColor[i].SetVisualPalette(visualPalette);
+                    }
+                }
+                return;
+            }
+
+            // Auto-create pools if Inspector didn't pre-assign them.
+            // Remove any stale BlockPools first so we don't double-up.
+            var existing = GetComponents<BlockPool>();
+            for (int i = existing.Length - 1; i >= 0; i--) Destroy(existing[i]);
+
+            _poolsPerColor = new BlockPool[blockPrefabs.Count];
+            for (int i = 0; i < blockPrefabs.Count; i++)
+            {
+                var entry = blockPrefabs[i];
+                if (entry == null || entry.Prefab == null) continue;
+
+                var poolGO = new GameObject($"BlockPool_{entry.Color}");
+                poolGO.transform.SetParent(transform);
+                var pool = poolGO.AddComponent<BlockPool>();
+
+                // Set prefab and color; BlockPool.CreateAndWrap() handles
+                // adding ConveyorColoredBlock at spawn-time so every returned
+                // block is guaranteed valid regardless of the prefab's contents.
+                pool.Prefab = entry.Prefab;
+                pool.SetColor(entry.Color);
+                pool.SetVisualPalette(visualPalette);
+                pool.WarmSize = Mathf.Max(blocksPerCluster, 4);
+
+                _poolsPerColor[i] = pool;
+            }
+
+            Debug.Log($"{name}: auto-created {_poolsPerColor.Length} BlockPools (warmSize={blocksPerCluster}).");
         }
 
         /// <summary>
@@ -232,6 +388,20 @@ namespace FlowBlast.Gameplay.Conveyor
         /// Pull the color palette from GridManager if autoSyncFromGridManager is on and the
         /// list is still empty. Otherwise keep the manually-assigned blockPrefabs.
         /// </summary>
+        private void ResolveVisualPalette()
+        {
+            if (visualPalette != null)
+            {
+                return;
+            }
+
+            var gm = FindObjectOfType<FlowBlast.Gameplay.Grid.GridManager>();
+            if (gm != null)
+            {
+                visualPalette = gm.GetBoxVisualPalette();
+            }
+        }
+
         private void ResolveBlockPrefabs()
         {
             if (!autoSyncFromGridManager) return;
@@ -244,6 +414,11 @@ namespace FlowBlast.Gameplay.Conveyor
             {
                 Debug.LogWarning($"{name}: autoSyncFromGridManager is on but no GridManager was found; leaving blockPrefabs empty.");
                 return;
+            }
+
+            if (visualPalette == null)
+            {
+                visualPalette = gm.GetBoxVisualPalette();
             }
 
             var palette = gm.GetAvailableColors();
@@ -284,13 +459,23 @@ namespace FlowBlast.Gameplay.Conveyor
                 }
             }
 
-            // Look for a Resources folder "Ball4" prefab.
+            // Try to find box.prefab in the scene / project — it has BoxTapMover + BoxCollider
+            // and is guaranteed to have a visible mesh. We add ConveyorColoredBlock at spawn time
+            // so no prefab modification is needed.
 #if UNITY_EDITOR
-            var asset = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Art/Model/Ball4.fbx");
-            if (asset != null) return asset;
+            var boxPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/box.prefab");
+            if (boxPrefab != null) return boxPrefab;
 #endif
 
-            // Search the scene for an inactive ball-like object to clone.
+            // Legacy: look for Ball4.fbx (FBX mesh, no GameObject-level components).
+            // Note: FBX can't be instantiated directly as a GameObject - this will return null.
+            // Keeping for reference only; use box.prefab above instead.
+#if UNITY_EDITOR
+            var ball4 = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Art/Model/Ball4.fbx");
+            if (ball4 != null) return ball4;
+#endif
+
+            // Search the scene for a fallback ball-like object to clone.
             var existing = GameObject.Find("Ball4");
             if (existing != null) return existing;
 
@@ -312,45 +497,52 @@ namespace FlowBlast.Gameplay.Conveyor
         /// Apply a BoxColor to a Renderer freshly spawned on the conveyor.
         /// Uses MaterialPropertyBlock so we don't leak material instances per ball.
         /// </summary>
-        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
-        private static readonly int ColorId = Shader.PropertyToID("_Color");
+        private static readonly int BaseMapId = Shader.PropertyToID("_BaseMap");
+        private static readonly int MainTexId = Shader.PropertyToID("_MainTex");
 
-        private static void ApplyColorToRenderer(Renderer rend, BoxColor color)
+        internal static void ApplyColorToRenderer(Renderer rend, BoxColor color, BoxVisualPaletteSO palette = null)
         {
             if (rend == null) return;
-            Color c = BoxColorToUnityColor(color);
+
             MaterialPropertyBlock mpb = new MaterialPropertyBlock();
             rend.GetPropertyBlock(mpb);
-            // Try URP first, fallback to legacy/built-in
-            mpb.SetColor(BaseColorId, c);
-            mpb.SetColor(ColorId, c);
-            rend.SetPropertyBlock(mpb);
-        }
 
-        /// <summary>
-        /// Map BoxColor to a sensible Color value. Pulled from the same palette Unity
-        /// uses to tint box prefabs so the visual matches the gameplay intent.
-        /// </summary>
-        public static Color BoxColorToUnityColor(BoxColor color)
-        {
-            switch (color)
+            if (palette == null)
             {
-                case BoxColor.Red:     return new Color(0.91f, 0.27f, 0.27f);
-                case BoxColor.Blue:    return new Color(0.27f, 0.55f, 0.91f);
-                case BoxColor.Green:   return new Color(0.30f, 0.78f, 0.40f);
-                case BoxColor.Yellow:  return new Color(0.96f, 0.86f, 0.27f);
-                case BoxColor.Purple:  return new Color(0.62f, 0.34f, 0.85f);
-                case BoxColor.Orange:  return new Color(0.96f, 0.55f, 0.20f);
-                default:               return Color.white;
+                return;
+            }
+
+            if (palette.SharedMaterial != null)
+            {
+                rend.sharedMaterial = palette.SharedMaterial;
+            }
+
+            if (palette.TryGetTexture(color, out Texture texture))
+            {
+                mpb.SetTexture(BaseMapId, texture);
+                mpb.SetTexture(MainTexId, texture);
+                rend.SetPropertyBlock(mpb);
             }
         }
 
         private void SpawnBlocks()
         {
-            blocks.Clear();
-            blockDistances.Clear();
-            blockGateFired.Clear();
-            blockIndicesByColor.Clear();
+            // GUARD: if Start() already spawned blocks before SetupFromConfig() was called,
+            // wipe them so we don't end up with two overlapping conveyor loops.
+            if (blocks.Count > 0)
+            {
+                Debug.LogWarning($"{name}: SpawnBlocks called with {blocks.Count} existing blocks — clearing before re-spawn (likely Start() ran before LoadLevel()).");
+                for (int i = 0; i < blocks.Count; i++)
+                {
+                    if (blocks[i] != null)
+                        DespawnFromPool(blocks[i]);
+                }
+                blocks.Clear();
+                blockDistances.Clear();
+                blockGateFired.Clear();
+                blockIndicesByColor.Clear();
+                colorsDone.Clear();
+            }
 
             int paletteSize = Mathf.Max(blockPrefabs.Count, 1);
 
@@ -374,16 +566,9 @@ namespace FlowBlast.Gameplay.Conveyor
             // To make clusters look joined like the reference game, fit `total` blocks
             // evenly along the spline when the user hasn't already chosen a custom spacing.
             // (set spacing to a very small value via Inspector to opt out.)
-            //
-            // Also enforce a MINIMUM spacing based on moveSpeed so that two consecutive
-            // blocks can never reach the gate faster than the dissolve animation takes
-            // (otherwise we get visible "skip" because two balls dissolve on top of each
-            // other within a single dissolve duration).
-            float minGateSpacing = Mathf.Max(0.1f, moveSpeed * dissolveDuration);
             float autoFit = splineLength / Mathf.Max(1, total);
             float effectiveSpacing = spacing;
             if (autoFit < effectiveSpacing) effectiveSpacing = autoFit;
-            if (effectiveSpacing < minGateSpacing) effectiveSpacing = minGateSpacing;
 
             // CLUSTER WRAP GUARD: For Clustered layouts, force each cluster of
             // `effectiveClusterStep` blocks to fit within a single arc of the spline
@@ -436,8 +621,42 @@ namespace FlowBlast.Gameplay.Conveyor
                 var entry = blockPrefabs[prefabIndex];
                 if (entry == null || entry.Prefab == null) continue;
 
-                GameObject blockObject = Instantiate(entry.Prefab, transform);
-                Transform blockTransform = blockObject.transform;
+                // Try to retrieve from the corresponding color pool; fall back to Instantiate.
+                ConveyorColoredBlock coloredComp;
+                GameObject blockObject;
+
+                // Short-circuit if pool was permanently disabled by a prior CreateInstance() failure.
+                // _prefabIsValid is set inside ComponentPool.Spawn(), but this check guards
+                // against stale references that were never nulled out.
+                if (_poolsPerColor != null && prefabIndex < _poolsPerColor.Length
+                    && _poolsPerColor[prefabIndex] != null
+                    && _poolsPerColor[prefabIndex].Prefab != null)
+                {
+                    var pooled = _poolsPerColor[prefabIndex].Spawn();
+                    if (pooled != null)
+                    {
+                        pooled.transform.SetParent(transform);
+                        coloredComp = pooled;
+                        blockObject = pooled.gameObject;
+                    }
+                    else
+                    {
+                        // Pool can't serve this color (prefab lacks ConveyorColoredBlock or
+                        // was permanently disabled). Null it out so Instantiate fallback fires.
+                        _poolsPerColor[prefabIndex] = null;
+                        blockObject = Instantiate(entry.Prefab, transform);
+                        coloredComp = blockObject.GetComponent<ConveyorColoredBlock>();
+                        if (coloredComp == null) coloredComp = blockObject.AddComponent<ConveyorColoredBlock>();
+                    }
+                }
+                else
+                {
+                    blockObject = Instantiate(entry.Prefab, transform);
+                    coloredComp = blockObject.GetComponent<ConveyorColoredBlock>();
+                    if (coloredComp == null) coloredComp = blockObject.AddComponent<ConveyorColoredBlock>();
+                }
+
+                Transform blockTransform = coloredComp.transform;
 
                 float startDistance = i * effectiveSpacing;
 
@@ -452,12 +671,9 @@ namespace FlowBlast.Gameplay.Conveyor
                 }
                 colorList.Add(blocks.Count - 1);
 
-                // Tag the spawned block with its color so GateMatcher / BoxContainer can compare.
-                ConveyorColoredBlock coloredComp = blockObject.GetComponent<ConveyorColoredBlock>();
-                if (coloredComp == null)
-                {
-                    coloredComp = blockObject.AddComponent<ConveyorColoredBlock>();
-                }
+                // coloredComp was already retrieved from the pool (or created fresh).
+                // The pool's OnSpawn callback already called ResetBlock → SetColor,
+                // but we re-apply here so the fallback Instantiate path also tints correctly.
                 coloredComp.SetColor(entry.Color);
 
                 // Attach a BlockHandle so GateMatcher can mark this block as consumed.
@@ -468,17 +684,7 @@ namespace FlowBlast.Gameplay.Conveyor
                 var renderers = blockObject.GetComponentsInChildren<Renderer>(true);
                 for (int r = 0; r < renderers.Length; r++)
                 {
-                    ApplyColorToRenderer(renderers[r], entry.Color);
-                }
-
-                // Also push the color onto BoxTapMover if the prefab has one (some ball
-                // prefabs double as boxes - harmless if missing).
-                var tap = blockObject.GetComponent<BoxTapMover>();
-                if (tap != null)
-                {
-                    typeof(BoxTapMover)
-                        .GetField("boxColor", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                        ?.SetValue(tap, entry.Color);
+                    ApplyColorToRenderer(renderers[r], entry.Color, visualPalette);
                 }
 
                 UpdateBlockTransform(blockTransform, startDistance);
@@ -494,6 +700,7 @@ namespace FlowBlast.Gameplay.Conveyor
                 if (i < blocks.Count - 1) sb.Append(", ");
             }
             Debug.Log(sb.ToString());
+            OnBlockStateChanged?.Invoke();
         }
 
         private void UpdateBlockDistances()
@@ -619,6 +826,7 @@ namespace FlowBlast.Gameplay.Conveyor
         /// on the top spline contains this many blocks before the color rolls over.
         /// </summary>
         public int BlocksPerCluster => blocksPerCluster;
+        public BoxVisualPaletteSO VisualPalette => visualPalette;
 
         /// <summary>
         /// Number of distinct colors in the active palette (blockPrefabs.Count).
@@ -639,10 +847,103 @@ namespace FlowBlast.Gameplay.Conveyor
             }
         }
 
+        public void CollectActiveBlocksByColor(BoxColor color, List<ConveyorColoredBlock> results)
+        {
+            if (results == null)
+            {
+                return;
+            }
+
+            results.Clear();
+            for (int i = 0; i < blocks.Count; i++)
+            {
+                Transform blockTransform = blocks[i];
+                if (!TryGetActiveColoredBlock(blockTransform, out ConveyorColoredBlock coloredBlock))
+                {
+                    continue;
+                }
+
+                if (coloredBlock.Color == color)
+                {
+                    results.Add(coloredBlock);
+                }
+            }
+        }
+
+        public bool HasActiveBlockWithColor(BoxColor color)
+        {
+            for (int i = 0; i < blocks.Count; i++)
+            {
+                Transform blockTransform = blocks[i];
+                if (!TryGetActiveColoredBlock(blockTransform, out ConveyorColoredBlock coloredBlock))
+                {
+                    continue;
+                }
+
+                if (coloredBlock.Color == color)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool TryGetActiveColoredBlock(Transform blockTransform, out ConveyorColoredBlock coloredBlock)
+        {
+            coloredBlock = null;
+            if (blockTransform == null || !blockTransform.gameObject.activeInHierarchy)
+            {
+                return false;
+            }
+
+            BlockHandle handle = blockTransform.GetComponent<BlockHandle>();
+            if (handle != null && handle.IsConsumed)
+            {
+                return false;
+            }
+
+            coloredBlock = blockTransform.GetComponent<ConveyorColoredBlock>();
+            return coloredBlock != null;
+        }
+
+        public bool MarkBlockConsumedForMagnet(ConveyorColoredBlock coloredBlock)
+        {
+            if (coloredBlock == null)
+            {
+                return false;
+            }
+
+            Transform blockTransform = coloredBlock.transform;
+            for (int i = 0; i < blocks.Count; i++)
+            {
+                if (blocks[i] != blockTransform)
+                {
+                    continue;
+                }
+
+                BlockHandle handle = blockTransform.GetComponent<BlockHandle>();
+                if (handle != null && handle.IsConsumed)
+                {
+                    return false;
+                }
+
+                if (handle == null)
+                {
+                    handle = blockTransform.gameObject.AddComponent<BlockHandle>();
+                }
+
+                handle.MarkConsumed();
+                blocks[i] = null;
+                OnBlockStateChanged?.Invoke();
+                return true;
+            }
+
+            return false;
+        }
+
         /// <summary>
         /// World-space tangent on the spline closest to a given world position.
-        /// Used by BlockDissolveEffect to make a consumed block visually "pour"
-        /// forward along the spline instead of vanishing in place.
         /// Returns Vector3.zero if the spline has not been initialized.
         /// </summary>
         public Vector3 EvaluateWorldTangent(Vector3 worldPosition)
@@ -757,14 +1058,101 @@ namespace FlowBlast.Gameplay.Conveyor
             {
                 if (blocks[i] != null)
                 {
-                    Destroy(blocks[i].gameObject);
+                    // Try to return blocks to their pools; fall back to Destroy.
+                    DespawnFromPool(blocks[i]);
                 }
             }
 
             blocks.Clear();
             blockDistances.Clear();
+            blockGateFired.Clear();
+            colorsDone.Clear();
+            blockIndicesByColor.Clear();
 
             BuildSplineCache();
+            SpawnBlocks();
+        }
+
+        /// <summary>
+        /// Setup this conveyor from a level config ScriptableObject.
+        /// Called by LevelLoader to drive the conveyor entirely from SO data.
+        /// Resolves block prefabs from GridManager, then spawns blocks.
+        /// </summary>
+        public void SetupFromConfig(GridMapDataSO config)
+        {
+            if (config == null)
+            {
+                Debug.LogWarning($"{name}: SetupFromConfig received null config.");
+                return;
+            }
+
+            // Stop current blocks before reconfiguring.
+            for (int i = 0; i < blocks.Count; i++)
+            {
+                if (blocks[i] != null)
+                    DespawnFromPool(blocks[i]);
+            }
+            blocks.Clear();
+            blockDistances.Clear();
+            blockGateFired.Clear();
+            colorsDone.Clear();
+            blockIndicesByColor.Clear();
+
+            // GUARD: if splineLength is 0 (Start() hasn't run yet), defer to Start()
+            // which will call BuildSplineCache() + SpawnBlocks(). Skip full setup here.
+            if (splineLength <= 0f)
+            {
+                Debug.Log($"{name}: SetupFromConfig called before Start() — deferring full init to Start().");
+                _pendingConfig = config;
+                return;
+            }
+            _pendingConfig = null;
+
+            // Apply conveyor parameters from SO.
+            visualPalette = config.VisualPalette;
+            moveSpeed = config.BlockSpeed;
+            blocksPerCluster = config.BlocksPerCluster;
+
+            // Auto-resolve block prefabs from GridManager so palette matches the level.
+            autoSyncFromGridManager = true;
+            blockPrefabs.Clear();
+            ResolveBlockPrefabs();
+
+            if (blockPrefabs.Count == 0 || blockPrefabs[0].Prefab == null)
+            {
+                Debug.LogWarning($"{name}: SetupFromConfig could not resolve blockPrefabs.");
+                return;
+            }
+
+            // Ensure clustered layout (matches Start() safety).
+            layout = BlockLayout.Clustered;
+            if (blocksPerCluster < 2)
+                blocksPerCluster = 4;
+
+            // SAFETY: Clamp blocksPerCluster so clusters don't wrap the spline.
+            if (splineLength > 0f && capBlocksPerClusterToSpline)
+            {
+                int palCount = Mathf.Max(blockPrefabs.Count, 1);
+                float arcPerCluster = splineLength / palCount;
+                float safetySpacing = Mathf.Max(spacing, 0.5f);
+                int safetyClusterSize = Mathf.Max(2, Mathf.FloorToInt(arcPerCluster / safetySpacing));
+                if (safetyClusterSize < 4) safetyClusterSize = 4;
+                if (blocksPerCluster > safetyClusterSize)
+                    blocksPerCluster = safetyClusterSize;
+            }
+
+            // Force blockCount to clean cluster boundaries.
+            int paletteSize = blockPrefabs.Count;
+            int desired = paletteSize * blocksPerCluster;
+            if (blockCount != desired)
+                blockCount = desired;
+
+            Debug.Log($"{name}: SetupFromConfig — speed={moveSpeed}, cluster={blocksPerCluster}, " +
+                      $"paletteSize={paletteSize}, blockCount={blockCount}");
+
+            BuildSplineCache();
+            ResolveGateDistance();
+            SetupBlockPools();
             SpawnBlocks();
         }
     }

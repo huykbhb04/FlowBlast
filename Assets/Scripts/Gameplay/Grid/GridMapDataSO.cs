@@ -19,7 +19,7 @@ namespace FlowBlast.Gameplay.Grid
 
         public static CellDataEntry Empty
         {
-            get { return new CellDataEntry(CellType.Empty, BoxColor.Red); }
+            get { return new CellDataEntry(CellType.Empty, BoxColorUtility.DefaultColor); }
         }
     }
 
@@ -37,29 +37,49 @@ namespace FlowBlast.Gameplay.Grid
         public string MapName = "New Map";
         [Range(1, 5)] public int Difficulty = 1;
 
-        [Header("Box Colors")]
-        public List<BoxColor> AvailableColors = new List<BoxColor>
-        {
-            BoxColor.Red,
-            BoxColor.Blue,
-            BoxColor.Green,
-            BoxColor.Yellow,
-            BoxColor.Purple,
-            BoxColor.Orange
-        };
+        [Header("Level Progression")]
+        [Tooltip("Zero-based index of this level in the level sequence.")]
+        public int LevelIndex = 0;
 
-        [Header("Scene Prefabs (optional - auto-detected by name if empty)")]
+        [Tooltip("Coins awarded when the player completes this level.")]
+        [Min(0)] public int CoinReward = 50;
+
+        [Tooltip("Completed boxes needed for 1 star.")]
+        [Min(1)] public int StarThreshold1 = 1;
+        [Tooltip("Completed boxes needed for 2 stars.")]
+        [Min(1)] public int StarThreshold2 = 3;
+        [Tooltip("Completed boxes needed for 3 stars.")]
+        [Min(1)] public int StarThreshold3 = 5;
+
+        [Header("Box Visual")]
+        public BoxVisualPaletteSO VisualPalette;
+
+        [Header("Box Colors")]
+        public List<BoxColor> AvailableColors = BoxColorUtility.CreateDefaultPalette();
+
+        [Header("Scene Prefabs")]
         public GameObject BoxPrefab;
         public GameObject WallPrefab;
-        public GameObject BackgroundPrefab;
-        public GameObject SlotPrefab;
-        public GameObject ExitPrefab;
 
         [Header("Board Build Settings")]
         public float CellSize = 1f;
         public float CellSpacing = 1f;
         public Vector3 BoardOrigin = Vector3.zero;
-        public bool BuildBackground = true;
+
+        [Header("Conveyor")]
+        [Min(0.1f)] public float BlockSpeed = 3f;
+        [Min(1)] public int BlocksPerCluster = 20;
+
+        [Header("Slot & Target")]
+        [Range(1, 4)] public int SlotCount = 4;
+        public float SlotCapacity = 100f;
+
+        [Header("Block Sequence")]
+        public bool DeriveBlockSequenceFromGrid = true;
+        public List<BoxColor> BlockSequenceOverride;
+
+        [Header("Target")]
+        public int TargetBoxCount = 0;
 
         public CellDataEntry GetCell(int row, int col)
         {
@@ -85,7 +105,12 @@ namespace FlowBlast.Gameplay.Grid
             }
         }
 
-        public void SetCellType(int row, int col, CellType type, BoxColor color = BoxColor.Red)
+        public void SetCellType(int row, int col, CellType type)
+        {
+            SetCellType(row, col, type, BoxColorUtility.DefaultColor);
+        }
+
+        public void SetCellType(int row, int col, CellType type, BoxColor color)
         {
             SetCell(row, col, new CellDataEntry(type, color));
         }
@@ -166,7 +191,7 @@ namespace FlowBlast.Gameplay.Grid
             }
             int[] border = BuildBorderIndices();
             int chosen = border.Length > 0 ? border[Random.Range(0, border.Length)] : Cells.Count - 1;
-            Cells[chosen] = new CellDataEntry(CellType.Exit, BoxColor.Red);
+            Cells[chosen] = new CellDataEntry(CellType.Exit, BoxColorUtility.DefaultColor);
         }
 
         public void ClearGrid()
@@ -177,7 +202,12 @@ namespace FlowBlast.Gameplay.Grid
             }
         }
 
-        public void FillGrid(CellType type, BoxColor color = BoxColor.Red)
+        public void FillGrid(CellType type)
+        {
+            FillGrid(type, BoxColorUtility.DefaultColor);
+        }
+
+        public void FillGrid(CellType type, BoxColor color)
         {
             for (int i = 0; i < Cells.Count; i++)
             {
@@ -244,7 +274,7 @@ namespace FlowBlast.Gameplay.Grid
 
             int placed = 0;
             for (int i = 0; i < indices.Count && placed < wallCount; i++)
-                Cells[indices[i]] = new CellDataEntry(CellType.Wall, BoxColor.Red);
+                Cells[indices[i]] = new CellDataEntry(CellType.Wall, BoxColorUtility.DefaultColor);
 
             // Place boxes on remaining empties
             List<BoxColor> palette = (AvailableColors != null && AvailableColors.Count > 0) ? AvailableColors : null;
@@ -254,10 +284,47 @@ namespace FlowBlast.Gameplay.Grid
                 {
                     BoxColor c = palette != null
                         ? palette[Random.Range(0, palette.Count)]
-                        : BoxColor.Red;
+                        : BoxColorUtility.DefaultColor;
                     Cells[i] = new CellDataEntry(CellType.Box, c);
                 }
             }
+        }
+
+        public Dictionary<BoxColor, int> GetBoxCountByColor()
+        {
+            var counts = new Dictionary<BoxColor, int>();
+            foreach (BoxColor c in System.Enum.GetValues(typeof(BoxColor)))
+                counts[c] = 0;
+
+            foreach (var cell in Cells)
+            {
+                if (cell.Type == CellType.Box)
+                    counts[cell.Color]++;
+            }
+            return counts;
+        }
+
+        public List<BoxColor> BuildBlockSequence()
+        {
+            if (BlockSequenceOverride != null && BlockSequenceOverride.Count > 0)
+                return new List<BoxColor>(BlockSequenceOverride);
+
+            var counts = GetBoxCountByColor();
+            var sequence = new List<BoxColor>();
+            foreach (var kvp in counts)
+            {
+                for (int i = 0; i < kvp.Value; i++)
+                    sequence.Add(kvp.Key);
+            }
+            return sequence;
+        }
+
+        public int GetTotalBoxCount()
+        {
+            int total = 0;
+            foreach (var cell in Cells)
+                if (cell.Type == CellType.Box) total++;
+            return total;
         }
     }
 }

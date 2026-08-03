@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c550aada01ebc443a9e222af74410f0, type: 3}
+  m_Name: AudioLibrary
+  m_EditorClassIdentifier: Assembly-CSharp::FlowBlast.Managers.AudioLibrarySO
+  _entries:
+  - Id: 10
+    Clip: {fileID: 8300000, guid: 58607f707e1b8c344ad45c7dfc9943c6, type: 3}
+    Volume: 1
+  - Id: 50
+    Clip: {fileID: 8300000, guid: d4ca5c8d06fc08f4785461f9b41a3532, type: 3}
+    Volume: 1
+  - Id: 20
+    Clip: {fileID: 8300000, guid: 1fb5c20bd690bea48a18248b1eaa3947, type: 3}
+    Volume: 1
+  - Id: 40
+    Clip: {fileID: 8300000, guid: 1fb5c20bd690bea48a18248b1eaa3947, type: 3}
+    Volume: 1
+  - Id: 40
+    Clip: {fileID: 8300000, guid: 040ec36537720ec45aab9e5826e94bff, type: 3}
+    Volume: 1
+  - Id: 110
+    Clip: {fileID: 8300000, guid: 9a78ab3502161be44854f0aa121e3a8e, type: 3}
+    Volume: 1
+  - Id: 100
+    Clip: {fileID: 8300000, guid: 28d5750242e15d74b90c2139df6e48d3, type: 3}
+    Volume: 1
+  - Id: 70
+    Clip: {fileID: 8300000, guid: aa151358e5a3b134c90c8cf208403c96, type: 3}
+    Volume: 1
+  - Id: 60
+    Clip: {fileID: 8300000, guid: 2af7c090e7cb0ea4daafd00a0ff8f118, type: 3}
+    Volume: 1
+  - Id: 80
+    Clip: {fileID: 8300000, guid: 6b68122d2c8524c49aa879cc2b038f7a, type: 3}
+    Volume: 1
+  - Id: 30
+    Clip: {fileID: 8300000, guid: d24a860c54e5d284eb74c37978d3ca69, type: 3}
+    Volume: 1

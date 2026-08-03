@@ -1,134 +1,160 @@
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
-using FlowBlast.Gameplay.Conveyor;
+using FlowBlast.Core;
+using FlowBlast.Managers;
 
 namespace FlowBlast.UI
 {
     /// <summary>
-    /// Heads-up display panel: shows progress (X/Y), coin count, and current level,
-    /// and holds the Pause button.
+    /// Controls the in-game HUD elements: Pause button, coin counter, etc.
+    /// Listens to <see cref="GameStateMachine.OnStateChanged"/> to show/hide itself
+    /// when the game transitions to non-playing states.
     ///
-    /// Visible during <see cref="UIState.Playing"/> only. Pauses the game when the Pause
-    /// button is pressed. When a 300Mind theme is injected, the placeholder visuals are
-    /// rebuilt with a top-bar layout (pause top-left, coin top-right, progress center,
-    /// level label bottom-center).
+    /// Attach to the HUD Canvas root (or a child panel).
     /// </summary>
-    [DisallowMultipleComponent]
-    public class HUDController : UIPanel
+    public class HUDController : MonoBehaviour
     {
-        [Header("Labels")]
-        [SerializeField] private TextMeshProUGUI _progressLabel;
-        [SerializeField] private TextMeshProUGUI _coinLabel;
-        [SerializeField] private TextMeshProUGUI _levelLabel;
+        public static HUDController Instance { get; private set; }
 
         [Header("Buttons")]
         [SerializeField] private Button _pauseButton;
 
-        [Header("Wiring")]
-        [Tooltip("Optional: existing GameProgressHUD on the scene. If null, we'll look one up at OnEnable.")]
-        [SerializeField] private GameProgressHUD _progress;
+        [Header("Coin Display")]
+        [Tooltip("Legacy Text for coin count.")]
+        [SerializeField] private Text _coinLabel;
+        [Tooltip("TMP UGUI text for coin count.")]
+        [SerializeField] private TMPro.TextMeshProUGUI _coinTmpLabel;
 
-        private Image _progressFill;
+        [Header("Level Display")]
+        [Tooltip("TMP UGUI text for current level, e.g. 'Level 1'.")]
+        [SerializeField] private TMPro.TextMeshProUGUI _levelTmpLabel;
 
-        protected override void Awake()
+        [Header("Format")]
+        [SerializeField] private string _coinPrefix = "Coins: ";
+        [SerializeField] private string _levelPrefix = "Level ";
+
+        [Header("Visibility")]
+        [Tooltip("GameObject to toggle when HUD should be hidden (e.g. during popups).")]
+        [SerializeField] private GameObject _hudPanel;
+
+        private void Awake()
         {
-            base.Awake();
-            if (_shownStates == null || _shownStates.Length == 0)
-                _shownStates = new[] { UIState.Playing };
-        }
+            Instance = this;
 
-        protected override void OnEnable()
-        {
-            base.OnEnable();
-            if (_progress == null) _progress = FindObjectOfType<GameProgressHUD>();
-            if (_pauseButton != null) _pauseButton.onClick.AddListener(OnPause);
-            Refresh();
-        }
-
-        protected override void OnDisable()
-        {
-            if (_pauseButton != null) _pauseButton.onClick.RemoveListener(OnPause);
-            base.OnDisable();
-        }
-
-        private void Update()
-        {
-            Refresh();
-        }
-
-        public override void BuildHierarchy(UITheme_300Mind theme)
-        {
-            if (theme == null) return;
-            if (_pauseButton != null) _pauseButton.onClick.RemoveListener(OnPause);
-
-            UIThemeBuilder.ClearChildren(transform);
-
-            // Pause icon button (top-left).
-            _pauseButton = UIThemeBuilder.BuildIconButton(transform, theme.iconPause, theme,
-                new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(100f, 100f), OnPause);
-            var prt = _pauseButton.GetComponent<RectTransform>();
-            prt.anchoredPosition = new Vector2(60f, -60f);
-
-            // Coin icon + label (top-right).
-            if (theme.iconCoin != null)
-                UIThemeBuilder.BuildIcon(transform, theme.iconCoin, new Vector2(80f, 80f), theme)
-                    .rectTransform.anchoredPosition = new Vector2(-160f, -60f);
-            _coinLabel = UIThemeBuilder.BuildText(transform, theme.bodyFont, 42f,
-                theme.paletteTitle, TextAlignmentOptions.MidlineRight, "0");
-            var crt = _coinLabel.rectTransform;
-            crt.anchorMin = new Vector2(1f, 1f);
-            crt.anchorMax = new Vector2(1f, 1f);
-            crt.pivot = new Vector2(1f, 0.5f);
-            crt.anchoredPosition = new Vector2(-60f, -60f);
-            crt.sizeDelta = new Vector2(220f, 80f);
-
-            // Progress bar (top-center).
-            var bar = UIThemeBuilder.BuildProgressBar(transform, theme,
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                new Vector2(560f, 50f));
-            bar.background.rectTransform.anchoredPosition = new Vector2(0f, -150f);
-            _progressFill = bar.fill;
-
-            _progressLabel = UIThemeBuilder.BuildText(bar.background.transform, theme.bodyFont, 32f,
-                theme.paletteTitle, TextAlignmentOptions.Center, "0/0");
-            var plrt = _progressLabel.rectTransform;
-            plrt.anchorMin = Vector2.zero;
-            plrt.anchorMax = Vector2.one;
-            plrt.offsetMin = Vector2.zero;
-            plrt.offsetMax = Vector2.zero;
-
-            // Level label (bottom-center).
-            _levelLabel = UIThemeBuilder.BuildText(transform, theme.titleFont, 64f,
-                theme.paletteTitle, TextAlignmentOptions.Center, "LEVEL 1");
-            var lrt = _levelLabel.rectTransform;
-            lrt.anchorMin = new Vector2(0f, 0f);
-            lrt.anchorMax = new Vector2(1f, 0f);
-            lrt.pivot = new Vector2(0.5f, 0f);
-            lrt.anchoredPosition = new Vector2(0f, 120f);
-            lrt.sizeDelta = new Vector2(0f, 100f);
-
-            if (_pauseButton != null) _pauseButton.onClick.AddListener(OnPause);
-            Refresh();
-        }
-
-        private void Refresh()
-        {
-            if (_progress != null && _progressLabel != null)
+            if (_pauseButton != null)
             {
-                _progressLabel.text = $"{_progress.CurrentCount}/{_progress.Total}";
-                if (_progressFill != null && _progress.Total > 0)
-                    _progressFill.fillAmount = (float)_progress.CurrentCount / _progress.Total;
+                _pauseButton.onClick.AddListener(OnPauseClicked);
             }
-            if (_coinLabel != null) _coinLabel.text = CoinService.Coins.ToString();
-            if (_levelLabel != null) _levelLabel.text = $"LEVEL {LevelService.CurrentLevel}";
         }
 
-        private void OnPause()
+        private void OnEnable()
         {
-            var mgr = UIManager.Instance;
-            if (mgr != null) mgr.Pause();
+            if (GameStateMachine.Instance != null)
+            {
+                GameStateMachine.Instance.OnStateChanged += HandleStateChanged;
+            }
+
+            RefreshAll();
+        }
+
+        private void OnDisable()
+        {
+            if (GameStateMachine.Instance != null)
+            {
+                GameStateMachine.Instance.OnStateChanged -= HandleStateChanged;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
+
+            if (_pauseButton != null)
+            {
+                _pauseButton.onClick.RemoveListener(OnPauseClicked);
+            }
+        }
+
+        // ─── Pause ──────────────────────────────────────────────────────
+
+        private void OnPauseClicked()
+        {
+            if (GameStateMachine.Instance == null)
+            {
+                return;
+            }
+
+            if (GameStateMachine.Instance.IsPlaying)
+            {
+                GameStateMachine.Instance.TransitionTo(GameState.Paused);
+            }
+        }
+
+        // ─── State Visibility ───────────────────────────────────────────
+
+        private void HandleStateChanged(GameState previous, GameState current)
+        {
+            // Show HUD only during Playing state.
+            if (_hudPanel != null)
+            {
+                _hudPanel.SetActive(current == GameState.Playing);
+            }
+
+            // Refresh displays when returning to Playing.
+            if (current == GameState.Playing)
+            {
+                RefreshAll();
+            }
+        }
+
+        // ─── Refresh ────────────────────────────────────────────────────
+
+        private void RefreshAll()
+        {
+            RefreshCoinDisplay();
+            RefreshLevelDisplay();
+        }
+
+        /// <summary>Update the coin display from SaveManager data.</summary>
+        public void RefreshCoinDisplay()
+        {
+            int coins = 0;
+            if (SaveManager.Instance != null && SaveManager.Instance.Data != null)
+            {
+                coins = SaveManager.Instance.Data.Coins;
+            }
+
+            string text = _coinPrefix + coins.ToString();
+
+            if (_coinLabel != null)
+            {
+                _coinLabel.text = text;
+            }
+
+            if (_coinTmpLabel != null)
+            {
+                _coinTmpLabel.text = text;
+            }
+        }
+
+        /// <summary>Update the level display from SaveManager data.</summary>
+        public void RefreshLevelDisplay()
+        {
+            if (_levelTmpLabel == null)
+            {
+                return;
+            }
+
+            int level = 1;
+            if (SaveManager.Instance != null && SaveManager.Instance.Data != null)
+            {
+                level = SaveManager.Instance.Data.CurrentLevel + 1;
+            }
+
+            _levelTmpLabel.text = _levelPrefix + level.ToString();
         }
     }
 }

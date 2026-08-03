@@ -9,6 +9,10 @@ namespace FlowBlast.Gameplay.Conveyor
     /// by the bottom box. The ball travels a short distance along the spline tangent
     /// (visually "pouring into" the slot underneath), shrinks, fades its material color,
     /// and is destroyed after the animation completes. Cheap, no shader required.
+    ///
+    /// Supports pool-aware return via PlayAndReturnToPool(): after the animation
+    /// finishes the component is destroyed but the parent ConveyorColoredBlock is
+    /// returned to its BlockPool instead of being garbage-collected.
     /// </summary>
     public class BlockDissolveEffect : MonoBehaviour
     {
@@ -35,9 +39,33 @@ namespace FlowBlast.Gameplay.Conveyor
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         private static readonly int ColorId = Shader.PropertyToID("_Color");
 
-        public void PlayAndDestroy()
+        private BlockPool _pool;
+        private ConveyorColoredBlock _coloredBlock;
+        private System.Action<ConveyorColoredBlock> _onCompleteWithPool;
+
+        /// <summary>Legacy path: animate then destroy the GameObject (no pooling).</summary>
+        public void PlayAndDestroy(System.Action onComplete = null)
         {
-            StartCoroutine(RunDissolve());
+            StartCoroutine(RunDissolve(null, null, null, onComplete));
+        }
+
+        /// <summary>
+        /// Pool-aware path: after the animation finishes the ConveyorColoredBlock is
+        /// returned to its BlockPool instead of being destroyed.
+        /// </summary>
+        /// <param name="pool">BlockPool to return the block to after animation.</param>
+        /// <param name="coloredBlock">ConveyorColoredBlock to recycle. Must be on the same GameObject.</param>
+        /// <param name="onComplete">Optional callback fired after the block is returned to the pool.</param>
+        public void PlayAndReturnToPool(
+            BlockPool pool,
+            ConveyorColoredBlock coloredBlock,
+            System.Action<ConveyorColoredBlock> onComplete = null,
+            System.Action onDissolveComplete = null)
+        {
+            _pool = pool;
+            _coloredBlock = coloredBlock;
+            _onCompleteWithPool = onComplete;
+            StartCoroutine(RunDissolve(pool, coloredBlock, onComplete, onDissolveComplete));
         }
 
         private void Awake()
@@ -48,7 +76,11 @@ namespace FlowBlast.Gameplay.Conveyor
             }
         }
 
-        private IEnumerator RunDissolve()
+        private IEnumerator RunDissolve(
+            BlockPool pool,
+            ConveyorColoredBlock coloredBlock,
+            System.Action<ConveyorColoredBlock> onComplete,
+            System.Action onDissolveComplete)
         {
             float elapsed = 0f;
             Vector3 startPosition = transform.position;
@@ -118,6 +150,18 @@ namespace FlowBlast.Gameplay.Conveyor
                 mpb.SetColor(BaseColorId, c);
                 mpb.SetColor(ColorId, c);
                 renderers[i].SetPropertyBlock(mpb);
+            }
+
+            onDissolveComplete?.Invoke();
+
+            // Return the ConveyorColoredBlock to its pool before destroying the GameObject.
+            // OnDespawn (BlockPool.OnBlockDespawn) is called inside pool.Despawn()
+            // to stop active coroutines on the block.
+            if (pool != null && coloredBlock != null)
+            {
+                pool.Despawn(coloredBlock);
+                onComplete?.Invoke(coloredBlock);
+                yield break;
             }
 
             Destroy(gameObject);

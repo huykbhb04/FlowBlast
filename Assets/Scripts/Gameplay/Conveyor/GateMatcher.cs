@@ -4,27 +4,14 @@ using FlowBlast.Gameplay.Grid;
 
 namespace FlowBlast.Gameplay.Conveyor
 {
-    /// <summary>
-    /// Top block conveyor runs along the top spline. When a top block reaches
-    /// the gate position, this matcher asks the bottom ray: "is there a Box
-    /// in the active slot?"
-    ///
-    ///   - Match (top color == box.RequiredColor) -> BoxContainer.AddProgress(+ProgressStep),
-    ///                                              top block is consumed (destroyed).
-    ///   - Miss  (colors differ OR no box)        -> top block continues along the spline
-    ///                                              (the conveyor keeps moving it).
-    ///   - When a container becomes IsCompleted   -> fly the box up out of the scene,
-    ///                                              clear its slot so a new box can land.
-    /// </summary>
     public class GateMatcher : MonoBehaviour
     {
         [Header("Refs")]
         [SerializeField] private BottomRayManager _bottomRay;
         [SerializeField] private SplineConveyor _splineConveyor;
+        [SerializeField] private BlockCollectEffectSpawner _collectEffectSpawner;
 
-        [Header("Match Settings")]
-        [Tooltip("Progress added per matching top ball. If <= 0, auto-derived from SplineConveyor.BlocksPerCluster (100 / blocksPerCluster). With 20 balls/color, each ball adds 5%.")]
-        [SerializeField] private float _progressStep = 0f;
+        private const float DEFAULT_PROGRESS_STEP = 5f;
 
         [Header("Debug")]
         [SerializeField] private bool _logEvents = true;
@@ -34,26 +21,8 @@ namespace FlowBlast.Gameplay.Conveyor
             if (_bottomRay == null)
                 _bottomRay = BottomRayManager.Instance;
             if (_splineConveyor == null) _splineConveyor = FindObjectOfType<SplineConveyor>();
-
-            // AUTO-DERIVE: if the Inspector didn't set _progressStep explicitly, take it
-            // from the top SplineConveyor so "n balls = 100%" is consistent regardless
-            // of how many balls the user spawned per color cluster.
-            // With 80 total balls split across 4 colors -> 20 balls/color -> 5%/ball.
-            // With 16 total balls split across 4 colors ->  4 balls/color -> 25%/ball.
-            if (_progressStep <= 0f && _splineConveyor != null)
-            {
-                _progressStep = _splineConveyor.PerBallProgressPercent;
-                Debug.Log($"{nameof(GateMatcher)}: _progressStep auto-set to {_progressStep:F2} (= 100/{_splineConveyor.BlocksPerCluster} balls/color) from SplineConveyor.");
-            }
-            else if (_progressStep <= 0f)
-            {
-                _progressStep = 25f;
-                Debug.LogWarning($"{nameof(GateMatcher)}: _progressStep<=0 and no SplineConveyor found. Defaulting to 25.");
-            }
-            else
-            {
-                Debug.Log($"{nameof(GateMatcher)}: _progressStep={_progressStep:F2} (Inspector override).");
-            }
+            if (_collectEffectSpawner == null) _collectEffectSpawner = GetComponent<BlockCollectEffectSpawner>();
+            SyncCollectEffectPalette();
         }
 
         /// <summary>
@@ -87,6 +56,19 @@ namespace FlowBlast.Gameplay.Conveyor
                 .ThenBy(s => s.SlotIndex)
                 .FirstOrDefault();
 
+            if (_logEvents)
+            {
+                string slotInfo = slot != null
+                    ? $"slot{slot.SlotIndex}={slot.GetContainer().RequiredColor}(p={slot.GetContainer().Progress:F0}%)"
+                    : "NO_SLOT";
+                var occupiedSlots = _bottomRay.Slots
+                    .Where(s => s != null && s.IsOccupied && !s.IsCompleted && s.GetContainer() != null)
+                    .Select(s => $"slot{s.SlotIndex}:{s.GetContainer().RequiredColor}")
+                    .ToArray();
+                //Debug.Log($"{nameof(GateMatcher)}: top ball {topColor} at gate, matched {slotInfo}. " +
+                         // $"Occupied slots: [{string.Join(", ", occupiedSlots)}]");
+            }
+
             // If every slot of this color has already been completed, dissolve the
             // block right here at the gate. This is how we drain the conveyor cleanly
             // (no mid-flight destroy, no skip frames).
@@ -98,8 +80,8 @@ namespace FlowBlast.Gameplay.Conveyor
                     return;
                 }
 
-                if (_logEvents)
-                    Debug.Log($"{nameof(GateMatcher)}: No occupied slot under gate, top {topColor} block continues.");
+                // if (_logEvents)
+                    //Debug.Log($"{nameof(GateMatcher)}: No occupied slot under gate, top {topColor} block continues.");
                 ContinueTopBlock(topBlock);
                 return;
             }
@@ -113,35 +95,12 @@ namespace FlowBlast.Gameplay.Conveyor
 
             if (container.RequiredColor == topColor)
             {
-                // MATCH -> pour into container, top block consumed (with dissolve effect).
-                container.AddProgress(_progressStep);
                 if (_logEvents)
                     Debug.Log($"{nameof(GateMatcher)}: MATCH {topColor} -> slot {slot.SlotIndex} progress={container.Progress}");
 
-                // Stop the top conveyor from advancing this block further while we dissolve it.
-                var handle = topBlock.GetComponent<BlockHandle>();
-                if (handle != null)
-                {
-                    handle.MarkConsumed();
-                }
-
-                var dissolve = topBlock.GetComponent<BlockDissolveEffect>();
-                if (dissolve == null) dissolve = topBlock.AddComponent<BlockDissolveEffect>();
-                dissolve.PlayAndDestroy();
-
-                // If this hit completed the container -> fly box up and free slot.
-                if (container.IsCompleted)
-                {
-                    FlyBoxUpAndClearSlot(slot);
-
-                    // After a slot finishes, check if EVERY slot of this color is now done.
-                    // If yes, flip the conveyor into "drain mode" so any incoming block of
-                    // that color is dissolved at the gate - no more MID matches possible.
-                    if (AllSlotsOfColorCompleted(topColor))
-                    {
-                        MarkColorDone(topColor);
-                    }
-                }
+                PlayCollectEffect(topBlock.transform.position, slot, topColor);
+                ConsumeTopBlockImmediately(topBlock);
+                AddProgressAfterBlockConsumed(slot, container, topColor);
             }
             else
             {
@@ -150,6 +109,83 @@ namespace FlowBlast.Gameplay.Conveyor
                     Debug.Log($"{nameof(GateMatcher)}: MISS top={topColor} vs slot{slot.SlotIndex}={container.RequiredColor}, top block continues.");
                 ContinueTopBlock(topBlock);
             }
+        }
+
+        private void AddProgressAfterBlockConsumed(BoxSlot slot, BoxContainer container, BoxColor topColor)
+        {
+            if (slot == null || container == null || slot.GetContainer() != container || container.IsCompleted)
+            {
+                return;
+            }
+
+            container.AddProgress(GetProgressStep());
+            if (_logEvents)
+            {
+                Debug.Log($"{nameof(GateMatcher)}: CONSUMED {topColor} -> slot {slot.SlotIndex} progress={container.Progress}");
+            }
+
+            if (!container.IsCompleted)
+            {
+                return;
+            }
+
+            FlyBoxUpAndClearSlot(slot);
+
+            if (AllSlotsOfColorCompleted(topColor))
+            {
+                MarkColorDone(topColor);
+            }
+        }
+
+        private float GetProgressStep()
+        {
+            if (_splineConveyor != null)
+            {
+                return _splineConveyor.PerBallProgressPercent;
+            }
+
+            return DEFAULT_PROGRESS_STEP;
+        }
+
+        private void PlayCollectEffect(Vector3 startPosition, BoxSlot slot, BoxColor color)
+        {
+            if (_collectEffectSpawner == null || slot == null)
+            {
+                return;
+            }
+
+            Transform target = slot.GetCollectTarget();
+            if (target == null)
+            {
+                return;
+            }
+
+            SyncCollectEffectPalette();
+            _collectEffectSpawner.Play(startPosition, target, color);
+        }
+
+        private void SyncCollectEffectPalette()
+        {
+            if (_collectEffectSpawner != null && _splineConveyor != null)
+            {
+                _collectEffectSpawner.SetVisualPalette(_splineConveyor.VisualPalette);
+            }
+        }
+
+        private void ConsumeTopBlockImmediately(GameObject topBlock)
+        {
+            if (topBlock == null)
+            {
+                return;
+            }
+
+            if (_splineConveyor != null)
+            {
+                _splineConveyor.ConsumeBlockImmediately(topBlock.transform);
+                return;
+            }
+
+            Destroy(topBlock);
         }
 
         private void ContinueTopBlock(GameObject topBlock)
@@ -167,14 +203,9 @@ namespace FlowBlast.Gameplay.Conveyor
             if (topBlock == null) return;
 
             if (_logEvents)
-                Debug.Log($"{nameof(GateMatcher)}: color {topColor} is DONE - dissolving incoming block at gate.");
+                Debug.Log($"{nameof(GateMatcher)}: color {topColor} is DONE - consuming incoming block at gate.");
 
-            var handle = topBlock.GetComponent<BlockHandle>();
-            if (handle != null) handle.MarkConsumed();
-
-            var dissolve = topBlock.GetComponent<BlockDissolveEffect>();
-            if (dissolve == null) dissolve = topBlock.AddComponent<BlockDissolveEffect>();
-            dissolve.PlayAndDestroy();
+            ConsumeTopBlockImmediately(topBlock);
         }
 
         /// <summary>
@@ -212,7 +243,16 @@ namespace FlowBlast.Gameplay.Conveyor
                 if (conveyors[i] != null) conveyors[i].MarkColorDone(color);
             }
             if (_splineConveyor != null) _splineConveyor.MarkColorDone(color);
+
+            // Fire public event so listeners (HUD, WinPopup, etc.) can react.
+            OnColorCompleted?.Invoke(color);
         }
+
+        /// <summary>
+        /// Raised every time a color's balls are fully consumed and the conveyor
+        /// enters drain mode for that color.
+        /// </summary>
+        public static event System.Action<BoxColor> OnColorCompleted;
 
         private void FlyBoxUpAndClearSlot(BoxSlot slot)
         {
@@ -227,14 +267,27 @@ namespace FlowBlast.Gameplay.Conveyor
 
             GameObject boxObj = slot.CurrentBox;
 
+            // Resolve BoxPool from BoxSlot (auto-find if not assigned).
+            var boxPool = slot.BoxPool;
+
             // Add a fly-up animator on the fly if the prefab didn't ship with one.
             var animator = boxObj.GetComponent<BoxExitAnimator>();
             if (animator == null) animator = boxObj.AddComponent<BoxExitAnimator>();
 
-            animator.PlayAndClear(() =>
+            BoxTapMover mover = boxObj.GetComponent<BoxTapMover>();
+
+            // Prefer pool-aware exit animation.
+            if (boxPool != null && mover != null)
             {
-                _bottomRay.OnSlotCompleted(slot);
-            });
+                animator.PlayAndClearAndReturnToPool(
+                    () => _bottomRay.OnSlotCompleted(slot),
+                    boxPool,
+                    mover);
+            }
+            else
+            {
+                animator.PlayAndClear(() => _bottomRay.OnSlotCompleted(slot));
+            }
         }
     }
 }

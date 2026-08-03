@@ -1,4 +1,7 @@
+using System;
 using System.Collections.Generic;
+using FlowBlast.Gameplay.Boosters;
+using FlowBlast.Gameplay.Conveyor;
 using UnityEngine;
 using UnityEngine.Splines;
 
@@ -24,6 +27,7 @@ namespace FlowBlast.Gameplay.Grid
     {
         [Header("Grid Map")]
         [SerializeField] private GridMapDataSO mapDataSO;
+        [SerializeField] private bool loadMapOnAwake;
 
         [Header("Conveyor Animation")]
         [SerializeField] private Transform receivePoint;
@@ -32,8 +36,17 @@ namespace FlowBlast.Gameplay.Grid
         [SerializeField] private float moveSpeed = 2f;
         [SerializeField] private bool loopSpline = true;
 
+        [Header("Boosters")]
+        [SerializeField] private MagnetBoosterEffect _magnetBoosterEffect;
+
         private GridMapData gridMap;
         private readonly List<BoxInfo> movingBoxes = new List<BoxInfo>();
+        private readonly BoardBoxRegistry _boxRegistry = new BoardBoxRegistry();
+        private readonly Dictionary<BoosterType, IBooster> _boosters = new Dictionary<BoosterType, IBooster>();
+        private bool _isHandBoosterActive;
+        private bool _isMagnetBoosterActive;
+
+        public event Action OnBoardStateChanged;
 
         private class BoxInfo
         {
@@ -50,7 +63,12 @@ namespace FlowBlast.Gameplay.Grid
 
         private void Awake()
         {
-            LoadMapFromSO();
+            RegisterBoosters();
+
+            if (loadMapOnAwake)
+            {
+                LoadMapFromSO();
+            }
         }
 
         private void Update()
@@ -58,18 +76,48 @@ namespace FlowBlast.Gameplay.Grid
             UpdateMovingBoxes();
         }
 
+        private void RegisterBoosters()
+        {
+            _boosters.Clear();
+            RegisterBooster(new ShuffleBooster(this, new UnityShuffleRandomProvider()));
+            RegisterBooster(new HandBooster(this));
+            RegisterBooster(new MagnetBooster(this));
+        }
+
+        private void RegisterBooster(IBooster booster)
+        {
+            if (booster == null)
+            {
+                return;
+            }
+
+            _boosters[booster.Type] = booster;
+        }
+
         private void LoadMapFromSO()
         {
+            _isHandBoosterActive = false;
+            _isMagnetBoosterActive = false;
+            _boxRegistry.Clear();
             gridMap = mapDataSO != null
                 ? mapDataSO.ToGridMapData()
                 : GridMapData.CreateSampleMap();
-            Pathfinding.MarkSelectableByCeiling(gridMap);
+            RecalculateBoardState();
 
             int sel = Pathfinding.GetSelectableBoxes(gridMap).Count;
             int trapped = CountTrappedBoxes(gridMap);
             string mapName = mapDataSO != null ? mapDataSO.MapName : "<sample>";
             Debug.Log($"[GridManager] Loaded map '{mapName}' ({gridMap.Rows}x{gridMap.Cols}) " +
                       $"- {sel} selectable boxes, {trapped} trapped. Box animation ready.");
+        }
+
+        /// <summary>
+        /// Public overload used by LevelLoader to load a specific level config.
+        /// </summary>
+        public void LoadMapFromSO(GridMapDataSO config)
+        {
+            mapDataSO = config;
+            LoadMapFromSO();
         }
 
         private static int CountTrappedBoxes(GridMapData map)
@@ -82,6 +130,19 @@ namespace FlowBlast.Gameplay.Grid
                     if (cell != null && cell.IsTrapped) n++;
                 }
             return n;
+        }
+
+        public void RemoveBoxFromGrid(int row, int col)
+        {
+            if (gridMap == null)
+            {
+                return;
+            }
+
+            _boxRegistry.Unregister(row, col);
+            gridMap.RemoveBox(row, col);
+            RecalculateBoardState();
+            SyncRegisteredBoxStates();
         }
 
         /// <summary>
@@ -122,9 +183,10 @@ namespace FlowBlast.Gameplay.Grid
                 });
             }
 
-            // Remove the cell and recompute paths.
             gridMap.RemoveBox(cell.Row, cell.Col);
-            Pathfinding.MarkSelectableByCeiling(gridMap);
+            _boxRegistry.Unregister(cell.Row, cell.Col);
+            RecalculateBoardState();
+            SyncRegisteredBoxStates();
         }
 
         /// <summary>
@@ -181,7 +243,205 @@ namespace FlowBlast.Gameplay.Grid
             }
         }
 
+        public void RegisterBoardBox(int row, int col, BoxTapMover mover)
+        {
+            _boxRegistry.Register(row, col, mover);
+        }
+
+        public void UnregisterBoardBox(int row, int col)
+        {
+            _boxRegistry.Unregister(row, col);
+        }
+
+        public void ApplyRegisteredBoxColor(int row, int col, BoxColor color)
+        {
+            _boxRegistry.ApplyColor(row, col, color);
+        }
+
+        public void RecalculateBoardState()
+        {
+            if (gridMap == null)
+            {
+                return;
+            }
+
+            Pathfinding.MarkSelectableByCeiling(gridMap);
+            OnBoardStateChanged?.Invoke();
+        }
+
+        public void SyncRegisteredBoxStates()
+        {
+            if (gridMap == null)
+            {
+                return;
+            }
+
+            for (int row = 0; row < gridMap.Rows; row++)
+            {
+                for (int col = 0; col < gridMap.Cols; col++)
+                {
+                    GridCell cell = gridMap.GetCell(row, col);
+                    if (cell != null && cell.Type == CellType.Box)
+                    {
+                        _boxRegistry.ApplyTrappedState(row, col, cell.IsTrapped);
+                    }
+                }
+            }
+        }
+
+        public bool HasAnyBoxOnGrid()
+        {
+            if (gridMap == null)
+            {
+                return false;
+            }
+
+            for (int row = 0; row < gridMap.Rows; row++)
+            {
+                for (int col = 0; col < gridMap.Cols; col++)
+                {
+                    GridCell cell = gridMap.GetCell(row, col);
+                    if (cell != null && cell.Type == CellType.Box)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        public void ActivateHandBooster()
+        {
+            _isHandBoosterActive = true;
+            OnBoardStateChanged?.Invoke();
+        }
+
+        public bool TryConsumeHandBoosterOverride()
+        {
+            if (!_isHandBoosterActive)
+            {
+                return false;
+            }
+
+            _isHandBoosterActive = false;
+            OnBoardStateChanged?.Invoke();
+            return true;
+        }
+
+        public bool IsHandBoosterActive => _isHandBoosterActive;
+
+        public bool CanActivateMagnetBooster()
+        {
+            return !_isMagnetBoosterActive
+                && _magnetBoosterEffect != null
+                && _magnetBoosterEffect.HasAnyUsableTarget();
+        }
+
+        public void ActivateMagnetBooster()
+        {
+            _isMagnetBoosterActive = true;
+            OnBoardStateChanged?.Invoke();
+        }
+
+        public bool TryUseMagnetBoosterOnBox(BoxTapMover boxMover)
+        {
+            if (!_isMagnetBoosterActive || boxMover == null || _magnetBoosterEffect == null)
+            {
+                return false;
+            }
+
+            if (!TryGetOccupiedSlot(boxMover.gameObject, out BoxSlot slot))
+            {
+                Debug.Log("[GridManager] Magnet Booster requires selecting a box already placed on the bottom ray.");
+                return false;
+            }
+
+            if (!_magnetBoosterEffect.CanUseOnSlot(slot))
+            {
+                Debug.Log("[GridManager] Magnet Booster found no matching top blocks for the selected box.");
+                return false;
+            }
+
+            bool played = _magnetBoosterEffect.Play(slot);
+            if (played)
+            {
+                _isMagnetBoosterActive = false;
+                OnBoardStateChanged?.Invoke();
+            }
+
+            return played;
+        }
+
+        private bool TryGetOccupiedSlot(GameObject boxObject, out BoxSlot targetSlot)
+        {
+            targetSlot = null;
+            BottomRayManager bottomRayManager = BottomRayManager.Instance;
+            if (bottomRayManager == null || boxObject == null)
+            {
+                return false;
+            }
+
+            IReadOnlyList<BoxSlot> slots = bottomRayManager.Slots;
+            for (int i = 0; i < slots.Count; i++)
+            {
+                BoxSlot slot = slots[i];
+                if (slot != null && slot.CurrentBox == boxObject)
+                {
+                    targetSlot = slot;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public bool IsMagnetBoosterActive => _isMagnetBoosterActive;
+
+        public bool CanUseBooster(BoosterType boosterType)
+        {
+            return _boosters.TryGetValue(boosterType, out IBooster booster) && booster.CanUse();
+        }
+
+        public bool UseBooster(BoosterType boosterType)
+        {
+            if (!_boosters.TryGetValue(boosterType, out IBooster booster))
+            {
+                Debug.LogWarning($"[GridManager] Booster '{boosterType}' is not registered.");
+                return false;
+            }
+
+            bool used = booster.Use();
+            if (!used)
+            {
+                Debug.Log($"[GridManager] Booster '{boosterType}' cannot be used right now.");
+            }
+
+            return used;
+        }
+
+        public bool UseShuffleBooster()
+        {
+            return UseBooster(BoosterType.Shuffle);
+        }
+
+        public bool UseHandBooster()
+        {
+            return UseBooster(BoosterType.Hand);
+        }
+
+        public bool UseMagnetBooster()
+        {
+            return UseBooster(BoosterType.Magnet);
+        }
+
         public GridMapData GetGridMap() => gridMap;
+        public BoxVisualPaletteSO GetBoxVisualPalette() => mapDataSO != null ? mapDataSO.VisualPalette : null;
+        public Transform ReceivePoint => receivePoint;
+        public SplineContainer BottomSpline => bottomSpline;
+        public int BottomSplineIndex => bottomSplineIndex;
+        public float MoveSpeed => moveSpeed;
+        public bool LoopSpline => loopSpline;
         public List<GridCell> GetSelectableBoxes() =>
             gridMap != null ? Pathfinding.GetSelectableBoxes(gridMap) : new List<GridCell>();
         public bool HasSelectableBoxes() => GetSelectableBoxes().Count > 0;
@@ -194,11 +454,7 @@ namespace FlowBlast.Gameplay.Grid
         {
             if (mapDataSO != null && mapDataSO.AvailableColors != null && mapDataSO.AvailableColors.Count > 0)
                 return mapDataSO.AvailableColors;
-            return new List<BoxColor>
-            {
-                BoxColor.Red, BoxColor.Blue, BoxColor.Green,
-                BoxColor.Yellow, BoxColor.Purple, BoxColor.Orange
-            };
+            return BoxColorUtility.CreateDefaultPalette();
         }
     }
 
@@ -217,7 +473,7 @@ namespace FlowBlast.Gameplay.Grid
     {
         private GridManager gridManager;
         private GridCell cell;
-        private BoxColor color = BoxColor.Red;
+        private BoxColor color = BoxColorUtility.DefaultColor;
 
         public void Initialize(GridManager manager, GridCell gridCell, BoxColor boxColor)
         {

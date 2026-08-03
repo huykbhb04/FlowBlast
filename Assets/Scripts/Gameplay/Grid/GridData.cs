@@ -20,12 +20,33 @@ namespace FlowBlast.Gameplay.Grid
     /// </summary>
     public enum BoxColor
     {
-        Red,
-        Blue,
+        Pink,
         Green,
         Yellow,
         Purple,
-        Orange
+        Red,
+        Blue,
+        Gray,
+        Orange,
+        White
+    }
+
+    public static class BoxColorUtility
+    {
+        public static BoxColor DefaultColor
+        {
+            get
+            {
+                BoxColor[] values = (BoxColor[])Enum.GetValues(typeof(BoxColor));
+                return values.Length > 0 ? values[0] : (BoxColor)0;
+            }
+        }
+
+        public static List<BoxColor> CreateDefaultPalette()
+        {
+            BoxColor[] values = (BoxColor[])Enum.GetValues(typeof(BoxColor));
+            return new List<BoxColor>(values);
+        }
     }
 
     /// <summary>
@@ -49,7 +70,7 @@ namespace FlowBlast.Gameplay.Grid
         public GridCell()
         {
             Type = CellType.Empty;
-            Color = BoxColor.Red;
+            Color = BoxColorUtility.DefaultColor;
             IsPathToExit = false;
             IsSelectable = false;
         }
@@ -59,7 +80,7 @@ namespace FlowBlast.Gameplay.Grid
             Row = row;
             Col = col;
             Type = type;
-            Color = BoxColor.Red;
+            Color = BoxColorUtility.DefaultColor;
             IsPathToExit = false;
             IsSelectable = false;
         }
@@ -89,17 +110,6 @@ namespace FlowBlast.Gameplay.Grid
         public int Cols;
         public GridCell[,] Cells;
         
-        // Color map for visualization
-        private static readonly Dictionary<BoxColor, Color> ColorMap = new Dictionary<BoxColor, Color>
-        {
-            { BoxColor.Red, new Color(0.9f, 0.3f, 0.3f) },
-            { BoxColor.Blue, new Color(0.3f, 0.5f, 0.9f) },
-            { BoxColor.Green, new Color(0.3f, 0.8f, 0.4f) },
-            { BoxColor.Yellow, new Color(0.95f, 0.9f, 0.3f) },
-            { BoxColor.Purple, new Color(0.7f, 0.3f, 0.8f) },
-            { BoxColor.Orange, new Color(0.95f, 0.6f, 0.2f) }
-        };
-
         public GridMapData()
         {
             Rows = 0;
@@ -171,7 +181,12 @@ namespace FlowBlast.Gameplay.Grid
             return GetNeighbors(pos.x, pos.y);
         }
 
-        public void SetCell(int row, int col, CellType type, BoxColor color = BoxColor.Red)
+        public void SetCell(int row, int col, CellType type)
+        {
+            SetCell(row, col, type, BoxColorUtility.DefaultColor);
+        }
+
+        public void SetCell(int row, int col, CellType type, BoxColor color)
         {
             GridCell cell = GetCell(row, col);
             if (cell != null)
@@ -220,11 +235,6 @@ namespace FlowBlast.Gameplay.Grid
             SetCell(row, col, CellType.Empty);
         }
 
-        public Color GetBoxColor(BoxColor color)
-        {
-            return ColorMap.ContainsKey(color) ? ColorMap[color] : Color.white;
-        }
-
         /// <summary>
         /// Create a sample grid map for testing
         /// </summary>
@@ -251,64 +261,20 @@ namespace FlowBlast.Gameplay.Grid
             // Set exit (bottom right area)
             map.SetExit(7, 7);
             
-            // Set boxes with colors
-            map.SetBox(0, 0, BoxColor.Red);
-            map.SetBox(0, 1, BoxColor.Blue);
-            map.SetBox(0, 3, BoxColor.Green);
-            map.SetBox(0, 4, BoxColor.Yellow);
-            map.SetBox(0, 6, BoxColor.Purple);
-            map.SetBox(0, 7, BoxColor.Orange);
-            
-            map.SetBox(1, 0, BoxColor.Blue);
-            map.SetBox(1, 1, BoxColor.Red);
-            map.SetBox(1, 3, BoxColor.Green);
-            map.SetBox(1, 4, BoxColor.Yellow);
-            map.SetBox(1, 5, BoxColor.Red);
-            map.SetBox(1, 6, BoxColor.Blue);
-            map.SetBox(1, 7, BoxColor.Green);
-            
-            map.SetBox(2, 1, BoxColor.Yellow);
-            map.SetBox(2, 2, BoxColor.Purple);
-            map.SetBox(2, 3, BoxColor.Orange);
-            map.SetBox(2, 5, BoxColor.Red);
-            map.SetBox(2, 6, BoxColor.Blue);
-            map.SetBox(2, 7, BoxColor.Green);
-            
-            map.SetBox(3, 0, BoxColor.Green);
-            map.SetBox(3, 1, BoxColor.Blue);
-            map.SetBox(3, 2, BoxColor.Red);
-            map.SetBox(3, 3, BoxColor.Yellow);
-            map.SetBox(3, 5, BoxColor.Purple);
-            map.SetBox(3, 7, BoxColor.Orange);
-            
-            map.SetBox(4, 0, BoxColor.Orange);
-            map.SetBox(4, 3, BoxColor.Blue);
-            map.SetBox(4, 4, BoxColor.Green);
-            map.SetBox(4, 5, BoxColor.Red);
-            map.SetBox(4, 6, BoxColor.Yellow);
-            map.SetBox(4, 7, BoxColor.Purple);
-            
-            map.SetBox(5, 0, BoxColor.Red);
-            map.SetBox(5, 1, BoxColor.Green);
-            map.SetBox(5, 2, BoxColor.Blue);
-            map.SetBox(5, 3, BoxColor.Yellow);
-            map.SetBox(5, 5, BoxColor.Orange);
-            map.SetBox(5, 6, BoxColor.Red);
-            map.SetBox(5, 7, BoxColor.Blue);
-            
-            map.SetBox(6, 0, BoxColor.Purple);
-            map.SetBox(6, 1, BoxColor.Yellow);
-            map.SetBox(6, 2, BoxColor.Orange);
-            map.SetBox(6, 4, BoxColor.Green);
-            map.SetBox(6, 5, BoxColor.Red);
-            map.SetBox(6, 7, BoxColor.Blue);
-            
-            map.SetBox(7, 0, BoxColor.Blue);
-            map.SetBox(7, 2, BoxColor.Green);
-            map.SetBox(7, 3, BoxColor.Red);
-            map.SetBox(7, 4, BoxColor.Yellow);
-            map.SetBox(7, 5, BoxColor.Orange);
-            map.SetBox(7, 6, BoxColor.Purple);
+            List<BoxColor> palette = BoxColorUtility.CreateDefaultPalette();
+            int colorIndex = 0;
+            for (int r = 0; r < map.Rows; r++)
+            {
+                for (int c = 0; c < map.Cols; c++)
+                {
+                    GridCell cell = map.GetCell(r, c);
+                    if (cell != null && cell.IsEmpty())
+                    {
+                        map.SetBox(r, c, palette[colorIndex % palette.Count]);
+                        colorIndex++;
+                    }
+                }
+            }
             
             return map;
         }

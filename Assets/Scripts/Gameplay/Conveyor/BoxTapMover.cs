@@ -1,6 +1,5 @@
 using System.Collections;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.Splines;
 using FlowBlast.Gameplay.Grid;
 
@@ -8,8 +7,13 @@ namespace FlowBlast.Gameplay.Conveyor
 {
     public class BoxTapMover : MonoBehaviour
     {
-        [Header("Box Identity")]
-        [SerializeField] private FlowBlast.Gameplay.Grid.BoxColor boxColor = FlowBlast.Gameplay.Grid.BoxColor.Red;
+        private BoxColor currentBoxColor = BoxColorUtility.DefaultColor;
+
+        [Header("Box Visual")]
+        [SerializeField] private BoxVisualView boxVisualView;
+        [SerializeField] private BoxVisualPaletteSO visualPalette;
+        [SerializeField] private BoxProgressDisplay progressDisplay;
+        [SerializeField] private Transform collectTarget;
 
         [Header("Spline")]
         [SerializeField] private SplineContainer splineContainer;
@@ -24,7 +28,7 @@ namespace FlowBlast.Gameplay.Conveyor
         [SerializeField] private bool loop = true;
 
         [Header("Rotation")]
-        [SerializeField] private bool rotateToDirection = true;
+        [SerializeField] private bool rotateToDirection = false;
         [SerializeField] private Vector3 rotationOffset = Vector3.zero;
 
         [Header("Input")]
@@ -33,68 +37,122 @@ namespace FlowBlast.Gameplay.Conveyor
         [Header("Spline Sampling")]
         [SerializeField] private int sampleCount = 100;
 
+        private GridManager gridManager;
+        private bool isInitialized;
         private bool isMoving;
         private bool isJumping;
-        private bool isTrapped;       // Set externally via SetTrapped(); if true this box refuses to leave the grid.
+        private bool isTrapped;
+        private bool _hasLeftGrid;
         private float currentDistance;
         private float splineLength;
 
+        private void Awake()
+        {
+            CacheLocalReferences();
+        }
+
         private void Start()
         {
-            // SplineContainer và Receive Point có thể null khi scene chưa có conveyor.
-            // Trong trường hợp đó box vẫn hiển thị bình thường, chỉ là chưa chạy được.
+            CacheLocalReferences();
 
-            splineLength = splineContainer != null ? EstimateSplineLength() : 0f;
+            if (splineContainer != null)
+            {
+                splineLength = EstimateSplineLength();
+            }
 
-            // Nếu không đủ reference, log warning thay vì error + không tắt component.
-            if (splineContainer == null)
-                Debug.LogWarning($"{name}: SplineContainer is not assigned. Box will not move along conveyor until you assign it.");
-            if (receivePoint == null)
-                Debug.LogWarning($"{name}: Receive Point is not assigned. Tap will not jump to conveyor until you assign it.");
+            if (!isInitialized)
+            {
+                ApplyBoxVisual(currentBoxColor);
+            }
+        }
+
+        public void Initialize(
+            GridManager manager,
+            SplineContainer container,
+            Transform landingPoint,
+            BoxVisualPaletteSO palette,
+            BoxColor color,
+            bool trapped)
+        {
+            gridManager = manager;
+            splineContainer = container;
+            receivePoint = landingPoint;
+            visualPalette = palette;
+            currentBoxColor = color;
+            isTrapped = trapped;
+
+            if (manager != null)
+            {
+                splineIndex = manager.BottomSplineIndex;
+                moveSpeed = manager.MoveSpeed;
+                loop = manager.LoopSpline;
+            }
+            isInitialized = true;
+
+            CacheLocalReferences();
+
+            if (splineContainer != null)
+            {
+                splineLength = EstimateSplineLength();
+            }
+
+            ApplyBoxVisual(color);
+        }
+
+        private void CacheLocalReferences()
+        {
+            if (boxVisualView == null)
+            {
+                boxVisualView = GetComponent<BoxVisualView>();
+            }
 
             if (mainCamera == null)
             {
                 mainCamera = Camera.main;
             }
-
-            // Pull the correct color from the grid cell matching this Box's "Box_R_C" name.
-            // Inspector field may be left at default (Red) on prefabs; we override with the live cell color.
-            ResolveBoxColorFromGrid();
-
-            // Sync trapped state from GridManager (cell.IsTrapped) using box name "Box_R_C".
-            SyncTrappedStateFromGrid();
-
-            // Box ban đầu ở dưới khay, giữ nguyên vị trí hiện tại.
         }
 
-        /// <summary>
-        /// Read "Box_{row}_{col}" from this GameObject's name and ask GridManager for the cell color.
-        /// If the cell has a BoxColor (non-Empty / non-Exit), override boxColor with it. Otherwise
-        /// keep the Inspector-assigned value (so manual prefab overrides still work for non-grid boxes).
-        /// </summary>
-        private void ResolveBoxColorFromGrid()
+        public void ApplyBoxColor(BoxColor color)
         {
+            currentBoxColor = color;
+            ApplyBoxVisual(color);
+        }
+
+        public void SetVisualPalette(BoxVisualPaletteSO palette)
+        {
+            visualPalette = palette;
+        }
+
+        public BoxProgressDisplay ProgressDisplay => progressDisplay;
+        public Transform CollectTarget => collectTarget != null ? collectTarget : transform;
+
+        public bool TryGetGridPosition(out int row, out int col)
+        {
+            row = -1;
+            col = -1;
+
             string n = name;
             int us = n.IndexOf('_');
-            if (us < 0) return;
+            if (us < 0) return false;
             int us2 = n.IndexOf('_', us + 1);
-            if (us2 < 0) return;
-            if (!int.TryParse(n.Substring(us + 1, us2 - us - 1), out int row)) return;
-            if (!int.TryParse(n.Substring(us2 + 1), out int col)) return;
+            if (us2 < 0) return false;
+            if (!int.TryParse(n.Substring(us + 1, us2 - us - 1), out row)) return false;
+            return int.TryParse(n.Substring(us2 + 1), out col);
+        }
 
-            var gm = FindObjectOfType<FlowBlast.Gameplay.Grid.GridManager>();
-            if (gm == null) return;
-            var map = gm.GetGridMap();
-            if (map == null) return;
-            var cell = map.GetCell(row, col);
-            if (cell == null) return;
-            if (cell.Type != FlowBlast.Gameplay.Grid.CellType.Box) return;
-
-            if (cell.Color != boxColor)
+        private void ApplyBoxVisual(BoxColor color)
+        {
+            if (boxVisualView == null)
             {
-                Debug.Log($"[BoxTapMover] '{name}' color override {boxColor} -> {cell.Color} from grid cell ({row},{col}).");
-                boxColor = cell.Color;
+                return;
             }
+
+            if (visualPalette != null)
+            {
+                boxVisualView.SetPalette(visualPalette);
+            }
+
+            boxVisualView.Apply(color);
         }
 
         /// <summary>
@@ -103,17 +161,14 @@ namespace FlowBlast.Gameplay.Conveyor
         /// </summary>
         private void SyncTrappedStateFromGrid()
         {
-            string n = name; // e.g. "Box_0_1" or "Box_0_1(Clone)"
-            int us = n.IndexOf('_');
-            if (us < 0) return;
-            int us2 = n.IndexOf('_', us + 1);
-            if (us2 < 0) return;
-            if (!int.TryParse(n.Substring(us + 1, us2 - us - 1), out int row)) return;
-            if (!int.TryParse(n.Substring(us2 + 1), out int col)) return;
+            if (!TryGetGridPosition(out int row, out int col)) return;
 
-            var gm = FindObjectOfType<FlowBlast.Gameplay.Grid.GridManager>();
-            if (gm == null) return;
-            var map = gm.GetGridMap();
+            if (gridManager == null)
+            {
+                return;
+            }
+
+            GridMapData map = gridManager.GetGridMap();
             if (map == null) return;
             var cell = map.GetCell(row, col);
             if (cell == null) return;
@@ -134,25 +189,8 @@ namespace FlowBlast.Gameplay.Conveyor
             int[] dr = { -1, 1, 0, 0 };
             int[] dc = { 0, 0, -1, 1 };
 
-            // Pre-collect live box (row,col) positions so we don't pay FindObjectsOfType per neighbour.
-            // Exclude boxes that have already left the grid (moving along the conveyor),
-            // since they're no longer blocking neighbours from escaping.
-            var liveBoxes = new System.Collections.Generic.HashSet<(int, int)>();
-            var all = FindObjectsOfType<BoxTapMover>();
-            for (int i = 0; i < all.Length; i++)
-            {
-                var mb = all[i];
-                if (mb == this) continue;                  // skip self - neighbour check is for siblings
-                if (mb.isMoving || mb.isJumping) continue; // skip boxes that already left
-                string bn = mb.name;
-                int bus = bn.IndexOf('_');
-                if (bus < 0) continue;
-                int bus2 = bn.IndexOf('_', bus + 1);
-                if (bus2 < 0) continue;
-                if (!int.TryParse(bn.Substring(bus + 1, bus2 - bus - 1), out int br)) continue;
-                if (!int.TryParse(bn.Substring(bus2 + 1), out int bc)) continue;
-                liveBoxes.Add((br, bc));
-            }
+            System.Collections.Generic.HashSet<(int, int)> liveBoxes = new System.Collections.Generic.HashSet<(int, int)>();
+            CollectLiveBoxPositions(transform.parent, liveBoxes);
 
             bool hasEscape = false;
             for (int i = 0; i < 4 && !hasEscape; i++)
@@ -201,10 +239,32 @@ namespace FlowBlast.Gameplay.Conveyor
             }
         }
 
+        private void CollectLiveBoxPositions(Transform root, System.Collections.Generic.HashSet<(int, int)> liveBoxes)
+        {
+            if (root == null || liveBoxes == null)
+            {
+                return;
+            }
+
+            BoxTapMover mover = root.GetComponent<BoxTapMover>();
+            if (mover != null
+                && mover != this
+                && !mover._hasLeftGrid
+                && !mover.isMoving
+                && !mover.isJumping
+                && mover.TryGetGridPosition(out int row, out int col))
+            {
+                liveBoxes.Add((row, col));
+            }
+
+            for (int i = 0; i < root.childCount; i++)
+            {
+                CollectLiveBoxPositions(root.GetChild(i), liveBoxes);
+            }
+        }
+
         private void Update()
         {
-            HandleMouseClick();
-
             if (!isMoving || isJumping || splineContainer == null || splineLength <= 0f)
             {
                 return;
@@ -225,58 +285,61 @@ namespace FlowBlast.Gameplay.Conveyor
             ApplySplineTransform(t);
         }
 
-        private void HandleMouseClick()
+        private void OnMouseDown()
         {
-            if (!Mouse.current.leftButton.wasPressedThisFrame)
+            TryMoveFromTap();
+        }
+
+        private void TryMoveFromTap()
+        {
+            SyncTrappedStateFromGrid();
+
+            if (gridManager != null && gridManager.IsMagnetBoosterActive)
+            {
+                gridManager.TryUseMagnetBoosterOnBox(this);
+                return;
+            }
+
+            RayInputBlocker blocker = RayInputBlocker.Instance;
+            if (blocker != null && blocker.IsBlocked)
+            {
+                Debug.Log($"[BoxTapMover] BLOCKED: bottom ray is full ({blocker}).");
+                return;
+            }
+
+            if (isMoving || isJumping)
             {
                 return;
             }
 
-            // DEBUG: log tap attempt always
-            if (mainCamera == null)
+            bool shouldUseHandBooster = gridManager != null && gridManager.IsHandBoosterActive;
+            if (isTrapped && !shouldUseHandBooster)
             {
-                Debug.LogError($"{name}: Main Camera is not assigned!");
+                Debug.Log($"[BoxTapMover] BLOCKED: '{name}' is TRAPPED (no escapable neighbour) - cannot leave grid.");
                 return;
             }
 
-            Vector2 mousePos = Mouse.current.position.ReadValue();
-            Ray ray = mainCamera.ScreenPointToRay(mousePos);
-            Debug.Log($"[BoxTapMover] Tap detected at screen {mousePos}, raycast from {name}...");
-
-            if (Physics.Raycast(ray, out RaycastHit hit))
+            if (shouldUseHandBooster)
             {
-                Debug.Log($"[BoxTapMover] Raycast HIT: {hit.transform.name} (isThis={hit.transform == transform})");
-                if (hit.transform == transform || hit.transform.IsChildOf(transform))
-                {
-                    // Re-evaluate trap state at tap time: previous boxes may have left
-                    // the grid since Start(), opening new escape routes for this box.
-                    SyncTrappedStateFromGrid();
-
-                    if (isTrapped)
-                    {
-                        Debug.Log($"[BoxTapMover] BLOCKED: '{name}' is TRAPPED (no escapable neighbour) - cannot leave grid.");
-                        return;
-                    }
-
-                    // Check RayInputBlocker before jumping
-                    var blocker = RayInputBlocker.Instance;
-                    if (blocker != null && blocker.IsBlocked)
-                    {
-                        Debug.Log($"[BoxTapMover] BLOCKED: bottom ray is full ({blocker}).");
-                        return;
-                    }
-
-                    if (!isMoving && !isJumping)
-                    {
-                        Debug.Log($"[BoxTapMover] Box '{name}' tapped → jumping to conveyor.");
-                        StartCoroutine(JumpToConveyorAndMove());
-                    }
-                }
+                gridManager.TryConsumeHandBoosterOverride();
+                Debug.Log($"[BoxTapMover] Hand Booster used on '{name}' - trapped rule ignored once.");
             }
-            else
+
+            RaiseTapEvents();
+            Debug.Log($"[BoxTapMover] Box '{name}' tapped → jumping to conveyor.");
+            StartCoroutine(JumpToConveyorAndMove());
+        }
+
+        private void RaiseTapEvents()
+        {
+            GridCell cell = null;
+            if (gridManager != null && gridManager.GetGridMap() != null && TryGetGridPosition(out int row, out int col))
             {
-                Debug.Log($"[BoxTapMover] Raycast MISS at screen {mousePos}.");
+                cell = gridManager.GetGridMap().GetCell(row, col);
             }
+
+            BoxClickBus.RaiseBoxTapped(gameObject, currentBoxColor);
+            BoxClickBus.RaiseGridCellTapped(cell);
         }
 
         private IEnumerator JumpToConveyorAndMove()
@@ -288,7 +351,7 @@ namespace FlowBlast.Gameplay.Conveyor
             BoxSlot assignedSlot = null;
             if (ray != null)
             {
-                assignedSlot = ray.PlaceBox(gameObject, boxColor);
+                assignedSlot = ray.PlaceBox(this, currentBoxColor);
                 if (assignedSlot == null)
                 {
                     Debug.Log($"[BoxTapMover] '{name}' cannot move - all ray slots occupied.");
@@ -296,6 +359,8 @@ namespace FlowBlast.Gameplay.Conveyor
                 }
                 Debug.Log($"[BoxTapMover] '{name}' → slot {assignedSlot.SlotIndex} (IdlePoint={(assignedSlot.IdlePoint != null ? assignedSlot.IdlePoint.name : "<null>")}), " +
                           $"slotWorld={assignedSlot.GetIdlePosition()}, ray OccupiedCount={ray.OccupiedCount}/{ray.Slots.Count}");
+                _hasLeftGrid = true;
+                NotifyGridBoxLeft();
             }
             else
             {
@@ -321,13 +386,24 @@ namespace FlowBlast.Gameplay.Conveyor
             }
 
             transform.position = targetPosition;
-
-            // Tìm vị trí gần nhất trên spline rồi bắt đầu chạy từ đó
             currentDistance = FindNearestDistanceOnSpline(transform.position);
             isJumping = false;
-            isMoving = true;
+            isMoving = false;
 
-            ApplySplineTransform(DistanceToT(currentDistance));
+            if (assignedSlot != null)
+            {
+                assignedSlot.SetBoxSnapEnabled(true);
+            }
+        }
+
+        private void NotifyGridBoxLeft()
+        {
+            if (gridManager == null || !TryGetGridPosition(out int row, out int col))
+            {
+                return;
+            }
+
+            gridManager.RemoveBoxFromGrid(row, col);
         }
 
         private void ApplySplineTransform(float t)
@@ -383,6 +459,21 @@ namespace FlowBlast.Gameplay.Conveyor
                 splineLength = EstimateSplineLength();
             }
         }
+
+        public void SetSplineIndex(int index)
+        {
+            splineIndex = index;
+        }
+
+        public void SetMoveSpeed(float speed)
+        {
+            moveSpeed = speed;
+        }
+
+        public void SetLoop(bool shouldLoop)
+        {
+            loop = shouldLoop;
+        }
         
         public void SetReceivePoint(Transform point)
         {
@@ -403,6 +494,7 @@ namespace FlowBlast.Gameplay.Conveyor
         {
             isMoving = false;
             isJumping = false;
+            _hasLeftGrid = false;
             currentDistance = 0f;
         }
 
