@@ -123,6 +123,7 @@ namespace FlowBlast.Gameplay.Conveyor
         }
 
         public BoxProgressDisplay ProgressDisplay => progressDisplay;
+        public bool IsActiveOnGrid => !_hasLeftGrid && !isMoving && !isJumping && gameObject.activeInHierarchy;
 
         public bool TryGetGridPosition(out int row, out int col)
         {

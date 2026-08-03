@@ -1,10 +1,11 @@
 using System.Collections.Generic;
+using FlowBlast.Gameplay.Boosters;
 using FlowBlast.Gameplay.Conveyor;
 using UnityEngine;
 
 namespace FlowBlast.Gameplay.Grid
 {
-    public sealed class RuntimeBoardBuilder : MonoBehaviour
+    public sealed class RuntimeBoardBuilder : MonoBehaviour, IBoardBoxRegistry
     {
         [Header("References")]
         [SerializeField] private GridManager _gridManager;
@@ -17,8 +18,12 @@ namespace FlowBlast.Gameplay.Grid
         [SerializeField] private Vector3 _cellRotationEuler;
 
         private readonly List<GameObject> _spawnedObjects = new List<GameObject>();
+        private readonly List<BoardBoxReference> _boardBoxes = new List<BoardBoxReference>();
+        private readonly List<BoardBoxReference> _activeBoxesBuffer = new List<BoardBoxReference>();
 
         public Transform MapRoot => _mapRoot;
+        public int ActiveBoxCount => GetActiveBoxCount();
+        public IReadOnlyList<BoardBoxReference> ActiveBoxes => GetActiveBoxes();
 
         public void Build(GridMapDataSO config)
         {
@@ -101,6 +106,39 @@ namespace FlowBlast.Gameplay.Grid
             }
 
             _spawnedObjects.Clear();
+            _boardBoxes.Clear();
+            _activeBoxesBuffer.Clear();
+        }
+
+        private int GetActiveBoxCount()
+        {
+            int count = 0;
+
+            for (int i = 0; i < _boardBoxes.Count; i++)
+            {
+                if (_boardBoxes[i].IsValid)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        private IReadOnlyList<BoardBoxReference> GetActiveBoxes()
+        {
+            _activeBoxesBuffer.Clear();
+
+            for (int i = 0; i < _boardBoxes.Count; i++)
+            {
+                BoardBoxReference boxReference = _boardBoxes[i];
+                if (boxReference.IsValid)
+                {
+                    _activeBoxesBuffer.Add(boxReference);
+                }
+            }
+
+            return _activeBoxesBuffer;
         }
 
         private bool ValidateSpawnRoots(GridMapDataSO config)
@@ -156,6 +194,8 @@ namespace FlowBlast.Gameplay.Grid
                 config.VisualPalette,
                 data.Color,
                 isTrapped);
+
+            _boardBoxes.Add(new BoardBoxReference(row, col, mover));
 
             return true;
         }

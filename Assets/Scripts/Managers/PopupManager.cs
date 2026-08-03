@@ -6,10 +6,6 @@ using UnityEngine.UI;
 
 namespace FlowBlast.Managers
 {
-    /// <summary>
-    /// Central popup manager. Singleton, DontDestroyOnLoad.
-    /// Holds a Stack&lt;BasePopup&gt; and an Inspector-configurable [PopupId → Prefab] registry.
-    /// </summary>
     public class PopupManager : MonoBehaviour
     {
         [Serializable]
