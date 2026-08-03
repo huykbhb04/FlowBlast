@@ -1943,7 +1943,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
-  m_AnchoredPosition: {x: 0, y: 500}
+  m_AnchoredPosition: {x: 0, y: 367}
   m_SizeDelta: {x: 600, y: 300}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &883134403
@@ -2067,15 +2067,15 @@ RectTransform:
   m_GameObject: {fileID: 890871993}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 4, y: 4, z: 4}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 910055098}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 379.84, y: -200}
-  m_SizeDelta: {x: 100, y: 100}
+  m_AnchoredPosition: {x: 379.84, y: -188}
+  m_SizeDelta: {x: 400, y: 400}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &890871995
 MonoBehaviour:
@@ -2232,7 +2232,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 910055097}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 59f8146938fff824cb5fd77236b75775, type: 3}
   m_Name: 
@@ -2651,10 +2651,13 @@ MonoBehaviour:
   _gridManager: {fileID: 2143264138}
   _shuffleButton: {fileID: 1906795278}
   _handButton: {fileID: 1273287480}
+  _magnetButton: {fileID: 1043229847}
   _shuffleCountTmpLabel: {fileID: 1355883649}
   _shuffleCountFormat: '{0}'
   _handCountTmpLabel: {fileID: 644570168}
   _handCountFormat: '{0}'
+  _magnetCountTmpLabel: {fileID: 1341669896}
+  _magnetCountFormat: '{0}'
 --- !u!1 &1023509025
 GameObject:
   m_ObjectHideFlags: 0
@@ -2802,6 +2805,17 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 6009822749787241329, guid: 162e37a8207724b4ca3eeba6d7d7db26, type: 3}
   m_PrefabInstance: {fileID: 1043229845}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1043229847 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6559127159748519703, guid: 162e37a8207724b4ca3eeba6d7d7db26, type: 3}
+  m_PrefabInstance: {fileID: 1043229845}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
 --- !u!1 &1076666212
 GameObject:
   m_ObjectHideFlags: 0
@@ -4098,6 +4112,17 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1125438732}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1341669896 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 5583811372983757288, guid: 162e37a8207724b4ca3eeba6d7d7db26, type: 3}
+  m_PrefabInstance: {fileID: 1043229845}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
 --- !u!114 &1355883649 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 5583811372983757288, guid: 162e37a8207724b4ca3eeba6d7d7db26, type: 3}
@@ -6803,7 +6828,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 379.84, y: -524.26}
+  m_AnchoredPosition: {x: 379.84, y: -537}
   m_SizeDelta: {x: 1000, y: 200}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1970694297
@@ -7415,6 +7440,7 @@ MonoBehaviour:
   bottomSplineIndex: 0
   moveSpeed: 2
   loopSpline: 1
+  _magnetBoosterEffect: {fileID: 0}
 --- !u!65 &2143264139
 BoxCollider:
   m_ObjectHideFlags: 0

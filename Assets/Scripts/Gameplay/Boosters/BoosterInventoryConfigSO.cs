@@ -8,7 +8,8 @@ namespace FlowBlast.Gameplay.Boosters
         [SerializeField] private BoosterInventoryEntry[] _entries =
         {
             new BoosterInventoryEntry(BoosterType.Shuffle, 3),
-            new BoosterInventoryEntry(BoosterType.Hand, 3)
+            new BoosterInventoryEntry(BoosterType.Hand, 3),
+            new BoosterInventoryEntry(BoosterType.Magnet, 3)
         };
 
         public int GetDefaultCount(BoosterType boosterType)

@@ -24,6 +24,9 @@ namespace FlowBlast.Data
         /// <summary>Available Hand Booster uses.</summary>
         public int HandBoosterCount = 3;
 
+        /// <summary>Available Magnet Booster uses.</summary>
+        public int MagnetBoosterCount = 3;
+
         /// <summary>Sound effects toggle.</summary>
         public bool IsSfxOn = true;
 

@@ -21,6 +21,9 @@ namespace FlowBlast.Gameplay.Boosters
                 case BoosterType.Hand:
                     return Mathf.Max(0, saveManager.Data.HandBoosterCount);
 
+                case BoosterType.Magnet:
+                    return Mathf.Max(0, saveManager.Data.MagnetBoosterCount);
+
                 default:
                     return 0;
             }
@@ -48,6 +51,11 @@ namespace FlowBlast.Gameplay.Boosters
 
                 case BoosterType.Hand:
                     saveManager.Data.HandBoosterCount = Mathf.Max(0, saveManager.Data.HandBoosterCount - 1);
+                    saveManager.Save();
+                    return true;
+
+                case BoosterType.Magnet:
+                    saveManager.Data.MagnetBoosterCount = Mathf.Max(0, saveManager.Data.MagnetBoosterCount - 1);
                     saveManager.Save();
                     return true;
 

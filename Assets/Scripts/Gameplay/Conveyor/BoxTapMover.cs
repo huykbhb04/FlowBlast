@@ -292,6 +292,12 @@ namespace FlowBlast.Gameplay.Conveyor
         {
             SyncTrappedStateFromGrid();
 
+            if (gridManager != null && gridManager.IsMagnetBoosterActive)
+            {
+                gridManager.TryUseMagnetBoosterOnBox(this);
+                return;
+            }
+
             RayInputBlocker blocker = RayInputBlocker.Instance;
             if (blocker != null && blocker.IsBlocked)
             {

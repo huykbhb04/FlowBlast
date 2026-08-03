@@ -14,6 +14,7 @@ namespace FlowBlast.Gameplay.Boosters
         [Header("Buttons")]
         [SerializeField] private Button _shuffleButton;
         [SerializeField] private Button _handButton;
+        [SerializeField] private Button _magnetButton;
 
         [Header("Shuffle Count Display")]
         [SerializeField] private TextMeshProUGUI _shuffleCountTmpLabel;
@@ -22,6 +23,10 @@ namespace FlowBlast.Gameplay.Boosters
         [Header("Hand Count Display")]
         [SerializeField] private TextMeshProUGUI _handCountTmpLabel;
         [SerializeField] private string _handCountFormat = "{0}";
+
+        [Header("Magnet Count Display")]
+        [SerializeField] private TextMeshProUGUI _magnetCountTmpLabel;
+        [SerializeField] private string _magnetCountFormat = "{0}";
 
         private readonly IBoosterInventory _boosterInventory = new SaveBoosterInventory();
 
@@ -35,6 +40,11 @@ namespace FlowBlast.Gameplay.Boosters
             if (_handButton != null)
             {
                 _handButton.onClick.AddListener(UseHandBooster);
+            }
+
+            if (_magnetButton != null)
+            {
+                _magnetButton.onClick.AddListener(UseMagnetBooster);
             }
         }
 
@@ -66,6 +76,11 @@ namespace FlowBlast.Gameplay.Boosters
             if (_handButton != null)
             {
                 _handButton.onClick.RemoveListener(UseHandBooster);
+            }
+
+            if (_magnetButton != null)
+            {
+                _magnetButton.onClick.RemoveListener(UseMagnetBooster);
             }
         }
 
@@ -115,34 +130,45 @@ namespace FlowBlast.Gameplay.Boosters
             UseBooster(BoosterType.Hand);
         }
 
+        public void UseMagnetBooster()
+        {
+            UseBooster(BoosterType.Magnet);
+        }
+
         public void RefreshButtons()
         {
             RefreshShuffleButton();
             RefreshHandButton();
+            RefreshMagnetButton();
             RefreshShuffleCount();
             RefreshHandCount();
+            RefreshMagnetCount();
         }
 
         private void RefreshShuffleButton()
         {
-            if (_shuffleButton == null || _gridManager == null)
-            {
-                return;
-            }
-
-            _shuffleButton.interactable = _gridManager.CanUseBooster(BoosterType.Shuffle)
-                && _boosterInventory.CanSpend(BoosterType.Shuffle);
+            RefreshButton(_shuffleButton, BoosterType.Shuffle);
         }
 
         private void RefreshHandButton()
         {
-            if (_handButton == null || _gridManager == null)
+            RefreshButton(_handButton, BoosterType.Hand);
+        }
+
+        private void RefreshMagnetButton()
+        {
+            RefreshButton(_magnetButton, BoosterType.Magnet);
+        }
+
+        private void RefreshButton(Button button, BoosterType boosterType)
+        {
+            if (button == null || _gridManager == null)
             {
                 return;
             }
 
-            _handButton.interactable = _gridManager.CanUseBooster(BoosterType.Hand)
-                && _boosterInventory.CanSpend(BoosterType.Hand);
+            button.interactable = _gridManager.CanUseBooster(boosterType)
+                && _boosterInventory.CanSpend(boosterType);
         }
 
         private void RefreshShuffleCount()
@@ -153,6 +179,11 @@ namespace FlowBlast.Gameplay.Boosters
         private void RefreshHandCount()
         {
             SetCountText(_handCountTmpLabel, _handCountFormat, BoosterType.Hand);
+        }
+
+        private void RefreshMagnetCount()
+        {
+            SetCountText(_magnetCountTmpLabel, _magnetCountFormat, BoosterType.Magnet);
         }
 
         private void SetCountText(TextMeshProUGUI label, string format, BoosterType boosterType)

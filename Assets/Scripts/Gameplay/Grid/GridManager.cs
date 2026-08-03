@@ -36,11 +36,15 @@ namespace FlowBlast.Gameplay.Grid
         [SerializeField] private float moveSpeed = 2f;
         [SerializeField] private bool loopSpline = true;
 
+        [Header("Boosters")]
+        [SerializeField] private MagnetBoosterEffect _magnetBoosterEffect;
+
         private GridMapData gridMap;
         private readonly List<BoxInfo> movingBoxes = new List<BoxInfo>();
         private readonly BoardBoxRegistry _boxRegistry = new BoardBoxRegistry();
         private readonly Dictionary<BoosterType, IBooster> _boosters = new Dictionary<BoosterType, IBooster>();
         private bool _isHandBoosterActive;
+        private bool _isMagnetBoosterActive;
 
         public event Action OnBoardStateChanged;
 
@@ -77,6 +81,7 @@ namespace FlowBlast.Gameplay.Grid
             _boosters.Clear();
             RegisterBooster(new ShuffleBooster(this, new UnityShuffleRandomProvider()));
             RegisterBooster(new HandBooster(this));
+            RegisterBooster(new MagnetBooster(this));
         }
 
         private void RegisterBooster(IBooster booster)
@@ -92,6 +97,7 @@ namespace FlowBlast.Gameplay.Grid
         private void LoadMapFromSO()
         {
             _isHandBoosterActive = false;
+            _isMagnetBoosterActive = false;
             _boxRegistry.Clear();
             gridMap = mapDataSO != null
                 ? mapDataSO.ToGridMapData()
@@ -325,6 +331,73 @@ namespace FlowBlast.Gameplay.Grid
 
         public bool IsHandBoosterActive => _isHandBoosterActive;
 
+        public bool CanActivateMagnetBooster()
+        {
+            return !_isMagnetBoosterActive
+                && _magnetBoosterEffect != null
+                && _magnetBoosterEffect.HasAnyUsableTarget();
+        }
+
+        public void ActivateMagnetBooster()
+        {
+            _isMagnetBoosterActive = true;
+            OnBoardStateChanged?.Invoke();
+        }
+
+        public bool TryUseMagnetBoosterOnBox(BoxTapMover boxMover)
+        {
+            if (!_isMagnetBoosterActive || boxMover == null || _magnetBoosterEffect == null)
+            {
+                return false;
+            }
+
+            if (!TryGetOccupiedSlot(boxMover.gameObject, out BoxSlot slot))
+            {
+                Debug.Log("[GridManager] Magnet Booster requires selecting a box already placed on the bottom ray.");
+                return false;
+            }
+
+            if (!_magnetBoosterEffect.CanUseOnSlot(slot))
+            {
+                Debug.Log("[GridManager] Magnet Booster found no matching top blocks for the selected box.");
+                return false;
+            }
+
+            bool played = _magnetBoosterEffect.Play(slot);
+            if (played)
+            {
+                _isMagnetBoosterActive = false;
+                OnBoardStateChanged?.Invoke();
+            }
+
+            return played;
+        }
+
+        private bool TryGetOccupiedSlot(GameObject boxObject, out BoxSlot targetSlot)
+        {
+            targetSlot = null;
+            BottomRayManager bottomRayManager = BottomRayManager.Instance;
+            if (bottomRayManager == null || boxObject == null)
+            {
+                return false;
+            }
+
+            IReadOnlyList<BoxSlot> slots = bottomRayManager.Slots;
+            for (int i = 0; i < slots.Count; i++)
+            {
+                BoxSlot slot = slots[i];
+                if (slot != null && slot.CurrentBox == boxObject)
+                {
+                    targetSlot = slot;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public bool IsMagnetBoosterActive => _isMagnetBoosterActive;
+
         public bool CanUseBooster(BoosterType boosterType)
         {
             return _boosters.TryGetValue(boosterType, out IBooster booster) && booster.CanUse();
@@ -355,6 +428,11 @@ namespace FlowBlast.Gameplay.Grid
         public bool UseHandBooster()
         {
             return UseBooster(BoosterType.Hand);
+        }
+
+        public bool UseMagnetBooster()
+        {
+            return UseBooster(BoosterType.Magnet);
         }
 
         public GridMapData GetGridMap() => gridMap;

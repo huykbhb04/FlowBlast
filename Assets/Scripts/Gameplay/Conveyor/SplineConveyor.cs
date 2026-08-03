@@ -837,6 +837,70 @@ namespace FlowBlast.Gameplay.Conveyor
             }
         }
 
+        public void CollectActiveBlocksByColor(BoxColor color, List<ConveyorColoredBlock> results)
+        {
+            if (results == null)
+            {
+                return;
+            }
+
+            results.Clear();
+            for (int i = 0; i < blocks.Count; i++)
+            {
+                Transform blockTransform = blocks[i];
+                if (blockTransform == null || !blockTransform.gameObject.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                BlockHandle handle = blockTransform.GetComponent<BlockHandle>();
+                if (handle != null && handle.IsConsumed)
+                {
+                    continue;
+                }
+
+                ConveyorColoredBlock coloredBlock = blockTransform.GetComponent<ConveyorColoredBlock>();
+                if (coloredBlock != null && coloredBlock.Color == color)
+                {
+                    results.Add(coloredBlock);
+                }
+            }
+        }
+
+        public bool MarkBlockConsumedForMagnet(ConveyorColoredBlock coloredBlock)
+        {
+            if (coloredBlock == null)
+            {
+                return false;
+            }
+
+            Transform blockTransform = coloredBlock.transform;
+            for (int i = 0; i < blocks.Count; i++)
+            {
+                if (blocks[i] != blockTransform)
+                {
+                    continue;
+                }
+
+                BlockHandle handle = blockTransform.GetComponent<BlockHandle>();
+                if (handle != null && handle.IsConsumed)
+                {
+                    return false;
+                }
+
+                if (handle == null)
+                {
+                    handle = blockTransform.gameObject.AddComponent<BlockHandle>();
+                }
+
+                handle.MarkConsumed();
+                blocks[i] = null;
+                return true;
+            }
+
+            return false;
+        }
+
         /// <summary>
         /// World-space tangent on the spline closest to a given world position.
         /// Used by BlockDissolveEffect to make a consumed block visually "pour"

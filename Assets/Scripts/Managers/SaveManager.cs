@@ -127,6 +127,7 @@ namespace FlowBlast.Managers
             {
                 saveData.ShuffleBoosterCount = _boosterInventoryConfig.GetDefaultCount(BoosterType.Shuffle);
                 saveData.HandBoosterCount = _boosterInventoryConfig.GetDefaultCount(BoosterType.Hand);
+                saveData.MagnetBoosterCount = _boosterInventoryConfig.GetDefaultCount(BoosterType.Magnet);
             }
 
             return saveData;
