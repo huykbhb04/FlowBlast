@@ -1,4 +1,7 @@
+using System;
 using System.Collections.Generic;
+using FlowBlast.Gameplay.Boosters;
+using FlowBlast.Gameplay.Conveyor;
 using UnityEngine;
 using UnityEngine.Splines;
 
@@ -35,6 +38,10 @@ namespace FlowBlast.Gameplay.Grid
 
         private GridMapData gridMap;
         private readonly List<BoxInfo> movingBoxes = new List<BoxInfo>();
+        private readonly BoardBoxRegistry _boxRegistry = new BoardBoxRegistry();
+        private readonly Dictionary<BoosterType, IBooster> _boosters = new Dictionary<BoosterType, IBooster>();
+
+        public event Action OnBoardStateChanged;
 
         private class BoxInfo
         {
@@ -51,6 +58,8 @@ namespace FlowBlast.Gameplay.Grid
 
         private void Awake()
         {
+            RegisterBoosters();
+
             if (loadMapOnAwake)
             {
                 LoadMapFromSO();
@@ -62,12 +71,29 @@ namespace FlowBlast.Gameplay.Grid
             UpdateMovingBoxes();
         }
 
+        private void RegisterBoosters()
+        {
+            _boosters.Clear();
+            RegisterBooster(new ShuffleBooster(this, new UnityShuffleRandomProvider()));
+        }
+
+        private void RegisterBooster(IBooster booster)
+        {
+            if (booster == null)
+            {
+                return;
+            }
+
+            _boosters[booster.Type] = booster;
+        }
+
         private void LoadMapFromSO()
         {
+            _boxRegistry.Clear();
             gridMap = mapDataSO != null
                 ? mapDataSO.ToGridMapData()
                 : GridMapData.CreateSampleMap();
-            Pathfinding.MarkSelectableByCeiling(gridMap);
+            RecalculateBoardState();
 
             int sel = Pathfinding.GetSelectableBoxes(gridMap).Count;
             int trapped = CountTrappedBoxes(gridMap);
@@ -104,8 +130,10 @@ namespace FlowBlast.Gameplay.Grid
                 return;
             }
 
+            _boxRegistry.Unregister(row, col);
             gridMap.RemoveBox(row, col);
-            Pathfinding.MarkSelectableByCeiling(gridMap);
+            RecalculateBoardState();
+            SyncRegisteredBoxStates();
         }
 
         /// <summary>
@@ -146,9 +174,10 @@ namespace FlowBlast.Gameplay.Grid
                 });
             }
 
-            // Remove the cell and recompute paths.
             gridMap.RemoveBox(cell.Row, cell.Col);
-            Pathfinding.MarkSelectableByCeiling(gridMap);
+            _boxRegistry.Unregister(cell.Row, cell.Col);
+            RecalculateBoardState();
+            SyncRegisteredBoxStates();
         }
 
         /// <summary>
@@ -203,6 +232,79 @@ namespace FlowBlast.Gameplay.Grid
                     }
                 }
             }
+        }
+
+        public void RegisterBoardBox(int row, int col, BoxTapMover mover)
+        {
+            _boxRegistry.Register(row, col, mover);
+        }
+
+        public void UnregisterBoardBox(int row, int col)
+        {
+            _boxRegistry.Unregister(row, col);
+        }
+
+        public void ApplyRegisteredBoxColor(int row, int col, BoxColor color)
+        {
+            _boxRegistry.ApplyColor(row, col, color);
+        }
+
+        public void RecalculateBoardState()
+        {
+            if (gridMap == null)
+            {
+                return;
+            }
+
+            Pathfinding.MarkSelectableByCeiling(gridMap);
+            OnBoardStateChanged?.Invoke();
+        }
+
+        public void SyncRegisteredBoxStates()
+        {
+            if (gridMap == null)
+            {
+                return;
+            }
+
+            for (int row = 0; row < gridMap.Rows; row++)
+            {
+                for (int col = 0; col < gridMap.Cols; col++)
+                {
+                    GridCell cell = gridMap.GetCell(row, col);
+                    if (cell != null && cell.Type == CellType.Box)
+                    {
+                        _boxRegistry.ApplyTrappedState(row, col, cell.IsTrapped);
+                    }
+                }
+            }
+        }
+
+        public bool CanUseBooster(BoosterType boosterType)
+        {
+            return _boosters.TryGetValue(boosterType, out IBooster booster) && booster.CanUse();
+        }
+
+        public bool UseBooster(BoosterType boosterType)
+        {
+            if (!_boosters.TryGetValue(boosterType, out IBooster booster))
+            {
+                Debug.LogWarning($"[GridManager] Booster '{boosterType}' is not registered.");
+                return false;
+            }
+
+            bool used = booster.Use();
+            if (!used)
+            {
+                Debug.Log($"[GridManager] Booster '{boosterType}' cannot be used right now.");
+            }
+
+            return used;
+        }
+
+        public bool UseShuffleBooster()
+        {
+            return UseBooster(BoosterType.Shuffle);
         }
 
         public GridMapData GetGridMap() => gridMap;

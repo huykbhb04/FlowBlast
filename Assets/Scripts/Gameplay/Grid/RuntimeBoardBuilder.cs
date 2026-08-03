@@ -157,6 +157,11 @@ namespace FlowBlast.Gameplay.Grid
                 data.Color,
                 isTrapped);
 
+            if (_gridManager != null)
+            {
+                _gridManager.RegisterBoardBox(row, col, mover);
+            }
+
             return true;
         }
 
