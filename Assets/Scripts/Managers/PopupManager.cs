@@ -85,11 +85,13 @@ namespace FlowBlast.Managers
         public BasePopup OpenPausePopup() { return Show(PopupId.Pause); }
         public BasePopup OpenWinPopup()   { return Show(PopupId.Win); }
         public BasePopup OpenLosePopup()  { return Show(PopupId.Lose); }
+        public BasePopup OpenBuyBoosterPopup() { return Show(PopupId.BuyBooster); }
 
         // Aliases — kept so existing Inspector wiring still resolves.
         public BasePopup ShowPausePopup() { return Show(PopupId.Pause); }
         public BasePopup ShowWinPopup()   { return Show(PopupId.Win); }
         public BasePopup ShowLosePopup()  { return Show(PopupId.Lose); }
+        public BasePopup ShowBuyBoosterPopup() { return Show(PopupId.BuyBooster); }
 
         public void ClosePausePopup() { CloseTopPopup(); }
         public void CloseWinPopup()   { CloseTopPopup(); }

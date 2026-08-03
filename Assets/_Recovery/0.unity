@@ -7615,6 +7615,8 @@ MonoBehaviour:
     prefab: {fileID: 1687459150}
   - id: 2
     prefab: {fileID: 0}
+  - id: 3
+    prefab: {fileID: 223344556677889900, guid: e10f189aa6017f040be3e064c506b8f5, type: 3}
   _overlaySortOrder: 9999
 --- !u!4 &1782125501
 Transform:

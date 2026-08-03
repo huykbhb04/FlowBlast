@@ -1,5 +1,7 @@
 using FlowBlast.Gameplay.Grid;
 using FlowBlast.Managers;
+using FlowBlast.UI;
+using FlowBlast.UI.Popup;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -27,6 +29,33 @@ namespace FlowBlast.Gameplay.Boosters
         [Header("Magnet Count Display")]
         [SerializeField] private TextMeshProUGUI _magnetCountTmpLabel;
         [SerializeField] private string _magnetCountFormat = "{0}";
+
+        [Header("Shop")]
+        [SerializeField] private BoosterPurchaseData _shufflePurchaseData = new BoosterPurchaseData
+        {
+            Type = BoosterType.Shuffle,
+            Amount = 1,
+            Cost = 100,
+            DisplayName = "Shuffle Booster",
+            Description = "Shuffle all boxes on the board."
+        };
+        [SerializeField] private BoosterPurchaseData _handPurchaseData = new BoosterPurchaseData
+        {
+            Type = BoosterType.Hand,
+            Amount = 1,
+            Cost = 100,
+            DisplayName = "Hand Booster",
+            Description = "Move one selected box manually."
+        };
+        [SerializeField] private BoosterPurchaseData _magnetPurchaseData = new BoosterPurchaseData
+        {
+            Type = BoosterType.Magnet,
+            Amount = 1,
+            Cost = 100,
+            DisplayName = "Magnet Booster",
+            Description = "Pull matching boxes with magnet power."
+        };
+        [SerializeField] private string _emptyCountText = "+";
 
         private readonly IBoosterInventory _boosterInventory = new SaveBoosterInventory();
 
@@ -122,17 +151,28 @@ namespace FlowBlast.Gameplay.Boosters
 
         public void UseShuffleBooster()
         {
-            UseBooster(BoosterType.Shuffle);
+            UseOrBuyBooster(BoosterType.Shuffle);
         }
 
         public void UseHandBooster()
         {
-            UseBooster(BoosterType.Hand);
+            UseOrBuyBooster(BoosterType.Hand);
         }
 
         public void UseMagnetBooster()
         {
-            UseBooster(BoosterType.Magnet);
+            UseOrBuyBooster(BoosterType.Magnet);
+        }
+
+        private void UseOrBuyBooster(BoosterType boosterType)
+        {
+            if (_boosterInventory.CanSpend(boosterType))
+            {
+                UseBooster(boosterType);
+                return;
+            }
+
+            OpenBuyBoosterPopup(boosterType);
         }
 
         public void RefreshButtons()
@@ -162,13 +202,18 @@ namespace FlowBlast.Gameplay.Boosters
 
         private void RefreshButton(Button button, BoosterType boosterType)
         {
-            if (button == null || _gridManager == null)
+            if (button == null)
             {
                 return;
             }
 
-            button.interactable = _gridManager.CanUseBooster(boosterType)
-                && _boosterInventory.CanSpend(boosterType);
+            if (!_boosterInventory.CanSpend(boosterType))
+            {
+                button.interactable = true;
+                return;
+            }
+
+            button.interactable = _gridManager != null && _gridManager.CanUseBooster(boosterType);
         }
 
         private void RefreshShuffleCount()
@@ -194,7 +239,55 @@ namespace FlowBlast.Gameplay.Boosters
             }
 
             int count = _boosterInventory.GetCount(boosterType);
-            label.text = string.Format(format, count);
+            label.text = count > 0 ? string.Format(format, count) : _emptyCountText;
+        }
+
+        private void OpenBuyBoosterPopup(BoosterType boosterType)
+        {
+            PopupManager popupManager = PopupManager.Instance;
+            if (popupManager == null)
+            {
+                Debug.LogWarning("[BoosterController] PopupManager is not available.");
+                return;
+            }
+
+            BasePopup popup = popupManager.Show(PopupId.BuyBooster);
+            BuyBoosterPopup buyBoosterPopup = popup as BuyBoosterPopup;
+            if (buyBoosterPopup == null)
+            {
+                Debug.LogWarning("[BoosterController] BuyBoosterPopup prefab is not registered or missing BuyBoosterPopup component.");
+                return;
+            }
+
+            buyBoosterPopup.Initialize(GetPurchaseData(boosterType), _boosterInventory, HandleBoosterPurchased);
+        }
+
+        private BoosterPurchaseData GetPurchaseData(BoosterType boosterType)
+        {
+            switch (boosterType)
+            {
+                case BoosterType.Shuffle:
+                    return _shufflePurchaseData;
+
+                case BoosterType.Hand:
+                    return _handPurchaseData;
+
+                case BoosterType.Magnet:
+                    return _magnetPurchaseData;
+
+                default:
+                    return _shufflePurchaseData;
+            }
+        }
+
+        private void HandleBoosterPurchased(BoosterType boosterType)
+        {
+            RefreshButtons();
+            HUDController hudController = HUDController.Instance;
+            if (hudController != null)
+            {
+                hudController.RefreshCoinDisplay();
+            }
         }
     }
 }

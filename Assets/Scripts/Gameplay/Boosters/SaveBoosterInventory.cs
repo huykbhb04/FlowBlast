@@ -63,5 +63,34 @@ namespace FlowBlast.Gameplay.Boosters
                     return false;
             }
         }
+
+        public void Add(BoosterType boosterType, int amount)
+        {
+            SaveManager saveManager = SaveManager.Instance;
+            if (saveManager == null || saveManager.Data == null || amount <= 0)
+            {
+                return;
+            }
+
+            switch (boosterType)
+            {
+                case BoosterType.Shuffle:
+                    saveManager.Data.ShuffleBoosterCount += amount;
+                    break;
+
+                case BoosterType.Hand:
+                    saveManager.Data.HandBoosterCount += amount;
+                    break;
+
+                case BoosterType.Magnet:
+                    saveManager.Data.MagnetBoosterCount += amount;
+                    break;
+
+                default:
+                    return;
+            }
+
+            saveManager.Save();
+        }
     }
 }

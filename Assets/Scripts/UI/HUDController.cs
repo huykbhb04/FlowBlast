@@ -14,6 +14,8 @@ namespace FlowBlast.UI
     /// </summary>
     public class HUDController : MonoBehaviour
     {
+        public static HUDController Instance { get; private set; }
+
         [Header("Buttons")]
         [SerializeField] private Button _pauseButton;
 
@@ -37,14 +39,20 @@ namespace FlowBlast.UI
 
         private void Awake()
         {
+            Instance = this;
+
             if (_pauseButton != null)
+            {
                 _pauseButton.onClick.AddListener(OnPauseClicked);
+            }
         }
 
         private void OnEnable()
         {
             if (GameStateMachine.Instance != null)
+            {
                 GameStateMachine.Instance.OnStateChanged += HandleStateChanged;
+            }
 
             RefreshAll();
         }
@@ -52,23 +60,37 @@ namespace FlowBlast.UI
         private void OnDisable()
         {
             if (GameStateMachine.Instance != null)
+            {
                 GameStateMachine.Instance.OnStateChanged -= HandleStateChanged;
+            }
         }
 
         private void OnDestroy()
         {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
+
             if (_pauseButton != null)
+            {
                 _pauseButton.onClick.RemoveListener(OnPauseClicked);
+            }
         }
 
         // ─── Pause ──────────────────────────────────────────────────────
 
         private void OnPauseClicked()
         {
-            if (GameStateMachine.Instance == null) return;
+            if (GameStateMachine.Instance == null)
+            {
+                return;
+            }
 
             if (GameStateMachine.Instance.IsPlaying)
+            {
                 GameStateMachine.Instance.TransitionTo(GameState.Paused);
+            }
         }
 
         // ─── State Visibility ───────────────────────────────────────────
@@ -83,7 +105,9 @@ namespace FlowBlast.UI
 
             // Refresh displays when returning to Playing.
             if (current == GameState.Playing)
+            {
                 RefreshAll();
+            }
         }
 
         // ─── Refresh ────────────────────────────────────────────────────
@@ -99,24 +123,36 @@ namespace FlowBlast.UI
         {
             int coins = 0;
             if (SaveManager.Instance != null && SaveManager.Instance.Data != null)
+            {
                 coins = SaveManager.Instance.Data.Coins;
+            }
 
             string text = _coinPrefix + coins.ToString();
 
             if (_coinLabel != null)
+            {
                 _coinLabel.text = text;
+            }
+
             if (_coinTmpLabel != null)
+            {
                 _coinTmpLabel.text = text;
+            }
         }
 
         /// <summary>Update the level display from SaveManager data.</summary>
         public void RefreshLevelDisplay()
         {
-            if (_levelTmpLabel == null) return;
+            if (_levelTmpLabel == null)
+            {
+                return;
+            }
 
             int level = 1;
             if (SaveManager.Instance != null && SaveManager.Instance.Data != null)
+            {
                 level = SaveManager.Instance.Data.CurrentLevel + 1;
+            }
 
             _levelTmpLabel.text = _levelPrefix + level.ToString();
         }

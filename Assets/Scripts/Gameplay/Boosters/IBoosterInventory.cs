@@ -5,5 +5,6 @@ namespace FlowBlast.Gameplay.Boosters
         int GetCount(BoosterType boosterType);
         bool CanSpend(BoosterType boosterType);
         bool TrySpend(BoosterType boosterType);
+        void Add(BoosterType boosterType, int amount);
     }
 }

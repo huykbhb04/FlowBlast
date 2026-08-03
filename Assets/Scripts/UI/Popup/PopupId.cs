@@ -9,5 +9,6 @@ namespace FlowBlast.UI.Popup
         Pause = 0,
         Win = 1,
         Lose = 2,
+        BuyBooster = 3,
     }
 }
