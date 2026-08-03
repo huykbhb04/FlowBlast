@@ -30,6 +30,8 @@ namespace FlowBlast.Gameplay.Grid
         private SerializedProperty _difficultyProp;
         private SerializedProperty _visualPaletteProp;
         private SerializedProperty _availableColorsProp;
+        private SerializedProperty _blockSpeedProp;
+        private SerializedProperty _blocksPerClusterProp;
         private SerializedProperty _boxPrefabProp;
         private SerializedProperty _wallPrefabProp;
         private SerializedProperty _cellSizeProp;
@@ -58,6 +60,8 @@ namespace FlowBlast.Gameplay.Grid
             _difficultyProp = serializedObject.FindProperty("Difficulty");
             _visualPaletteProp = serializedObject.FindProperty("VisualPalette");
             _availableColorsProp = serializedObject.FindProperty("AvailableColors");
+            _blockSpeedProp = serializedObject.FindProperty("BlockSpeed");
+            _blocksPerClusterProp = serializedObject.FindProperty("BlocksPerCluster");
             _boxPrefabProp = serializedObject.FindProperty("BoxPrefab");
             _wallPrefabProp = serializedObject.FindProperty("WallPrefab");
             _cellSizeProp = serializedObject.FindProperty("CellSize");
@@ -107,6 +111,9 @@ namespace FlowBlast.Gameplay.Grid
             EditorGUILayout.PropertyField(_visualPaletteProp, new GUIContent("Box Palette"));
             EditorGUILayout.PropertyField(_availableColorsProp, new GUIContent("Colors"), true);
 
+            EditorGUILayout.Space(10);
+            DrawConveyorSettings();
+
             EditorGUILayout.Space(12);
             DrawGridEditorToolbar();
 
@@ -126,6 +133,16 @@ namespace FlowBlast.Gameplay.Grid
 
             if (GUI.changed)
                 EditorUtility.SetDirty(_map);
+        }
+
+        // ------------------------------------------------------------------
+        // Conveyor Settings
+        // ------------------------------------------------------------------
+        private void DrawConveyorSettings()
+        {
+            EditorGUILayout.LabelField("Conveyor", _sectionHeaderStyle);
+            EditorGUILayout.PropertyField(_blockSpeedProp);
+            EditorGUILayout.PropertyField(_blocksPerClusterProp);
         }
 
         // ------------------------------------------------------------------

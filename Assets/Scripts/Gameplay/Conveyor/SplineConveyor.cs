@@ -76,12 +76,6 @@ namespace FlowBlast.Gameplay.Conveyor
         [SerializeField] private float moveSpeed = 2f;
         [SerializeField] private bool loop = true;
 
-        [Header("Gate Timing")]
-        [Tooltip("How long the dissolve / consume animation runs when a top ball matches " +
-                 "the gate. Must match BlockDissolveEffect.duration and BoxExitAnimator.duration. " +
-                 "Used to compute the minimum spacing so two balls can never reach the gate " +
-                 "faster than this duration (avoids visible 'skip' when 2 balls overlap).")]
-        [SerializeField] private float dissolveDuration = 0.6f;
 
         [Header("Rotation")]
         [SerializeField] private bool rotateToDirection = true;
@@ -162,10 +156,10 @@ namespace FlowBlast.Gameplay.Conveyor
         {
             if (blockTransform == null) return;
 
-            var colored = blockTransform.GetComponent<ConveyorColoredBlock>();
+            ConveyorColoredBlock colored = blockTransform.GetComponent<ConveyorColoredBlock>();
             if (colored != null)
             {
-                var pool = GetPoolForColor(colored.Color);
+                BlockPool pool = GetPoolForColor(colored.Color);
                 if (pool != null)
                 {
                     pool.Despawn(colored);
@@ -174,6 +168,25 @@ namespace FlowBlast.Gameplay.Conveyor
             }
 
             Destroy(blockTransform.gameObject);
+        }
+
+        public void ConsumeBlockImmediately(Transform blockTransform)
+        {
+            if (blockTransform == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < blocks.Count; i++)
+            {
+                if (blocks[i] == blockTransform)
+                {
+                    blocks[i] = null;
+                    break;
+                }
+            }
+
+            DespawnFromPool(blockTransform);
         }
 
         private void Start()
@@ -228,11 +241,10 @@ namespace FlowBlast.Gameplay.Conveyor
             // the spline (1/paletteSize of the loop). Otherwise blocks wrap multiple
             // times and colors visually overlap, looking like interleaved spawning.
             // Required: blocksPerCluster * effectiveSpacing <= splineLength / paletteSize.
-            // Use a generous spacing budget to keep gate smooth: max(moveSpeed * dissolveDuration, 0.5).
             {
                 int palCount = Mathf.Max(blockPrefabs.Count, 1);
                 float arcPerCluster = splineLength / palCount;
-                float safetySpacing = Mathf.Max(Mathf.Max(0.1f, moveSpeed * dissolveDuration), 0.5f);
+                float safetySpacing = Mathf.Max(spacing, 0.5f);
                 int safetyClusterSize = Mathf.Max(2, Mathf.FloorToInt(arcPerCluster / safetySpacing));
                 if (safetyClusterSize < 4) safetyClusterSize = 4; // need >= 4 to look like a cluster
                 if (capBlocksPerClusterToSpline && blocksPerCluster > safetyClusterSize)
@@ -551,16 +563,9 @@ namespace FlowBlast.Gameplay.Conveyor
             // To make clusters look joined like the reference game, fit `total` blocks
             // evenly along the spline when the user hasn't already chosen a custom spacing.
             // (set spacing to a very small value via Inspector to opt out.)
-            //
-            // Also enforce a MINIMUM spacing based on moveSpeed so that two consecutive
-            // blocks can never reach the gate faster than the dissolve animation takes
-            // (otherwise we get visible "skip" because two balls dissolve on top of each
-            // other within a single dissolve duration).
-            float minGateSpacing = Mathf.Max(0.1f, moveSpeed * dissolveDuration);
             float autoFit = splineLength / Mathf.Max(1, total);
             float effectiveSpacing = spacing;
             if (autoFit < effectiveSpacing) effectiveSpacing = autoFit;
-            if (effectiveSpacing < minGateSpacing) effectiveSpacing = minGateSpacing;
 
             // CLUSTER WRAP GUARD: For Clustered layouts, force each cluster of
             // `effectiveClusterStep` blocks to fit within a single arc of the spline
@@ -903,8 +908,6 @@ namespace FlowBlast.Gameplay.Conveyor
 
         /// <summary>
         /// World-space tangent on the spline closest to a given world position.
-        /// Used by BlockDissolveEffect to make a consumed block visually "pour"
-        /// forward along the spline instead of vanishing in place.
         /// Returns Vector3.zero if the spline has not been initialized.
         /// </summary>
         public Vector3 EvaluateWorldTangent(Vector3 worldPosition)
@@ -1073,7 +1076,6 @@ namespace FlowBlast.Gameplay.Conveyor
             visualPalette = config.VisualPalette;
             moveSpeed = config.BlockSpeed;
             blocksPerCluster = config.BlocksPerCluster;
-            BlocksPerSecond = config.BlocksPerSecond;
 
             // Auto-resolve block prefabs from GridManager so palette matches the level.
             autoSyncFromGridManager = true;
@@ -1096,7 +1098,7 @@ namespace FlowBlast.Gameplay.Conveyor
             {
                 int palCount = Mathf.Max(blockPrefabs.Count, 1);
                 float arcPerCluster = splineLength / palCount;
-                float safetySpacing = Mathf.Max(Mathf.Max(0.1f, moveSpeed * dissolveDuration), 0.5f);
+                float safetySpacing = Mathf.Max(spacing, 0.5f);
                 int safetyClusterSize = Mathf.Max(2, Mathf.FloorToInt(arcPerCluster / safetySpacing));
                 if (safetyClusterSize < 4) safetyClusterSize = 4;
                 if (blocksPerCluster > safetyClusterSize)
@@ -1110,19 +1112,12 @@ namespace FlowBlast.Gameplay.Conveyor
                 blockCount = desired;
 
             Debug.Log($"{name}: SetupFromConfig — speed={moveSpeed}, cluster={blocksPerCluster}, " +
-                      $"paletteSize={paletteSize}, blockCount={blockCount}, " +
-                      $"blocksPerSecond={BlocksPerSecond}");
+                      $"paletteSize={paletteSize}, blockCount={blockCount}");
 
             BuildSplineCache();
             ResolveGateDistance();
             SetupBlockPools();
             SpawnBlocks();
         }
-
-        /// <summary>
-        /// Current spawn rate from the level config (blocks per second).
-        /// Used by LevelLoader to sync with config values.
-        /// </summary>
-        public float BlocksPerSecond { get; private set; } = 1f;
     }
 }

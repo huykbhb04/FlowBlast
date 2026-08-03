@@ -44,9 +44,9 @@ namespace FlowBlast.Gameplay.Conveyor
         private System.Action<ConveyorColoredBlock> _onCompleteWithPool;
 
         /// <summary>Legacy path: animate then destroy the GameObject (no pooling).</summary>
-        public void PlayAndDestroy()
+        public void PlayAndDestroy(System.Action onComplete = null)
         {
-            StartCoroutine(RunDissolve(null, null, null));
+            StartCoroutine(RunDissolve(null, null, null, onComplete));
         }
 
         /// <summary>
@@ -59,12 +59,13 @@ namespace FlowBlast.Gameplay.Conveyor
         public void PlayAndReturnToPool(
             BlockPool pool,
             ConveyorColoredBlock coloredBlock,
-            System.Action<ConveyorColoredBlock> onComplete = null)
+            System.Action<ConveyorColoredBlock> onComplete = null,
+            System.Action onDissolveComplete = null)
         {
             _pool = pool;
             _coloredBlock = coloredBlock;
             _onCompleteWithPool = onComplete;
-            StartCoroutine(RunDissolve(pool, coloredBlock, onComplete));
+            StartCoroutine(RunDissolve(pool, coloredBlock, onComplete, onDissolveComplete));
         }
 
         private void Awake()
@@ -78,7 +79,8 @@ namespace FlowBlast.Gameplay.Conveyor
         private IEnumerator RunDissolve(
             BlockPool pool,
             ConveyorColoredBlock coloredBlock,
-            System.Action<ConveyorColoredBlock> onComplete)
+            System.Action<ConveyorColoredBlock> onComplete,
+            System.Action onDissolveComplete)
         {
             float elapsed = 0f;
             Vector3 startPosition = transform.position;
@@ -150,6 +152,8 @@ namespace FlowBlast.Gameplay.Conveyor
                 renderers[i].SetPropertyBlock(mpb);
             }
 
+            onDissolveComplete?.Invoke();
+
             // Return the ConveyorColoredBlock to its pool before destroying the GameObject.
             // OnDespawn (BlockPool.OnBlockDespawn) is called inside pool.Despawn()
             // to stop active coroutines on the block.
@@ -157,6 +161,7 @@ namespace FlowBlast.Gameplay.Conveyor
             {
                 pool.Despawn(coloredBlock);
                 onComplete?.Invoke(coloredBlock);
+                yield break;
             }
 
             Destroy(gameObject);

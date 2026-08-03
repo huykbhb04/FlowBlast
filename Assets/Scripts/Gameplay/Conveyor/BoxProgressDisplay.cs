@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 
@@ -8,21 +9,32 @@ namespace FlowBlast.Gameplay.Conveyor
         [Header("Progress Label")]
         [SerializeField] private TMP_Text _progressLabel;
 
+        [Header("Count Animation")]
+        [Min(1)]
+        [SerializeField] private int _percentPerFrame = 1;
+
         private bool _isVisible;
+        private int _displayedPercent;
+        private int _targetPercent;
+        private Coroutine _countCoroutine;
+        private BoxContainer _boundContainer;
 
         public void Bind(BoxContainer container)
         {
+            UnbindCurrentContainer();
+
             if (container == null)
             {
                 return;
             }
 
-            SetLabelText(0);
+            _boundContainer = container;
+            _displayedPercent = 0;
+            _targetPercent = 0;
+            SetLabelText(_displayedPercent);
             SetLabelVisible(false);
 
-            container.OnProgressChanged -= HandleProgressChanged;
             container.OnProgressChanged += HandleProgressChanged;
-            container.OnCompleted -= HandleProgressChanged;
             container.OnCompleted += HandleProgressChanged;
         }
 
@@ -33,15 +45,31 @@ namespace FlowBlast.Gameplay.Conveyor
                 return;
             }
 
-            int percent = Mathf.Clamp(Mathf.RoundToInt(container.Progress), 0, 100);
-            SetLabelText(percent);
+            _targetPercent = Mathf.Clamp(Mathf.RoundToInt(container.Progress), 0, 100);
 
-            if (!_isVisible && container.Progress > 0f)
+            if (!_isVisible && _targetPercent > 0)
             {
                 SetLabelVisible(true);
             }
 
-            if (container.IsCompleted)
+            if (_countCoroutine == null)
+            {
+                _countCoroutine = StartCoroutine(CountToTarget());
+            }
+        }
+
+        private IEnumerator CountToTarget()
+        {
+            while (_displayedPercent < _targetPercent)
+            {
+                _displayedPercent = Mathf.Min(_displayedPercent + _percentPerFrame, _targetPercent);
+                SetLabelText(_displayedPercent);
+                yield return null;
+            }
+
+            _countCoroutine = null;
+
+            if (_boundContainer != null && _boundContainer.IsCompleted && _displayedPercent >= 100)
             {
                 SetLabelVisible(false);
             }
@@ -64,6 +92,32 @@ namespace FlowBlast.Gameplay.Conveyor
             {
                 _progressLabel.gameObject.SetActive(visible);
             }
+        }
+
+        private void UnbindCurrentContainer()
+        {
+            if (_boundContainer != null)
+            {
+                _boundContainer.OnProgressChanged -= HandleProgressChanged;
+                _boundContainer.OnCompleted -= HandleProgressChanged;
+                _boundContainer = null;
+            }
+
+            if (_countCoroutine != null)
+            {
+                StopCoroutine(_countCoroutine);
+                _countCoroutine = null;
+            }
+        }
+
+        private void OnDisable()
+        {
+            UnbindCurrentContainer();
+        }
+
+        private void OnDestroy()
+        {
+            UnbindCurrentContainer();
         }
     }
 }

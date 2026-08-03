@@ -68,7 +68,6 @@ namespace FlowBlast.Gameplay.Grid
 
         [Header("Conveyor")]
         [Min(0.1f)] public float BlockSpeed = 3f;
-        [Min(0.1f)] public float BlocksPerSecond = 1f;
         [Min(1)] public int BlocksPerCluster = 20;
 
         [Header("Slot & Target")]
