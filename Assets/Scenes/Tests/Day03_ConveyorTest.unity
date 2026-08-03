@@ -2113,7 +2113,10 @@ MonoBehaviour:
   _winTrigger: {fileID: 1900000002}
   _loseTrigger: {fileID: 1076666213}
   _defaultLevel: {fileID: 11400000, guid: 75c7a5e67049edc46969c379ebf5bfa3, type: 2}
-  _allLevels: []
+  _allLevels:
+  - {fileID: 11400000, guid: 75c7a5e67049edc46969c379ebf5bfa3, type: 2}
+  - {fileID: 11400000, guid: c4530723bdaa1c747a8e6f9f094a9f16, type: 2}
+  - {fileID: 11400000, guid: bedb0e128d4f41b41ac02dee07d481b6, type: 2}
 --- !u!4 &903066421
 Transform:
   m_ObjectHideFlags: 0
@@ -2665,8 +2668,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1023509025}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -7.06, y: 1.90571, z: -2.94}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -6342,7 +6345,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1782125498}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0d3078f56a8a3ab46b3b1f0c7238bb20, type: 3}
   m_Name: 
@@ -6622,8 +6625,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b2c3d4e5f6a708192a3b4c5d6e7f8901, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FlowBlast.Gameplay.Conveyor.WinTrigger
-  progressDisplay: {fileID: 1900000001}
-  delayBeforePopup: 0.8
+  delayBeforeNextLevel: 0.8
   logTrigger: 1
 --- !u!1001 &1906795276
 PrefabInstance:
@@ -7190,71 +7192,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1983444279}
   m_CullTransparentMesh: 1
---- !u!1001 &2014269866
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: -8679921383154817045, guid: 273b95a780ba0e5429c78bf469708cd5, type: 3}
-      propertyPath: m_LocalScale.x
-      value: 0.22
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 273b95a780ba0e5429c78bf469708cd5, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: -0.09
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 273b95a780ba0e5429c78bf469708cd5, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 16.73
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 273b95a780ba0e5429c78bf469708cd5, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: -8
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 273b95a780ba0e5429c78bf469708cd5, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 0.8925859
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 273b95a780ba0e5429c78bf469708cd5, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: -0.45087755
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 273b95a780ba0e5429c78bf469708cd5, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 273b95a780ba0e5429c78bf469708cd5, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 273b95a780ba0e5429c78bf469708cd5, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: -53.6
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 273b95a780ba0e5429c78bf469708cd5, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 273b95a780ba0e5429c78bf469708cd5, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: -8679921383154817045, guid: 273b95a780ba0e5429c78bf469708cd5, type: 3}
-      propertyPath: m_ConstrainProportionsScale
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 919132149155446097, guid: 273b95a780ba0e5429c78bf469708cd5, type: 3}
-      propertyPath: m_Name
-      value: Convenyor_horizontal
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: 273b95a780ba0e5429c78bf469708cd5, type: 3}
 --- !u!1 &2039587918
 GameObject:
   m_ObjectHideFlags: 0
@@ -7592,7 +7529,6 @@ SceneRoots:
   m_Roots:
   - {fileID: 1941091211}
   - {fileID: 1865169698}
-  - {fileID: 2014269866}
   - {fileID: 764725225}
   - {fileID: 627150306}
   - {fileID: 21822757}

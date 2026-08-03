@@ -13,6 +13,8 @@ namespace FlowBlast.Gameplay
     /// </summary>
     public class LevelLoader : MonoBehaviour
     {
+        public static LevelLoader Instance { get; private set; }
+
         [Header("Subsystem References")]
         [SerializeField] private GridManager _gridManager;
         [SerializeField] private RuntimeBoardBuilder _boardBuilder;
@@ -32,6 +34,19 @@ namespace FlowBlast.Gameplay
         [SerializeField] private GridMapDataSO[] _allLevels;
 
         private GridMapDataSO _currentConfig;
+
+        private void Awake()
+        {
+            Instance = this;
+        }
+
+        private void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
+        }
 
         private void Start()
         {
@@ -105,9 +120,17 @@ namespace FlowBlast.Gameplay
             else
                 Debug.LogWarning("[LevelLoader] GameProgressHUD not assigned.");
 
-            // Reset triggers so they can fire for this new level.
-            if (_winTrigger != null) _winTrigger.ResetTrigger();
-            if (_loseTrigger != null) _loseTrigger.ResetTrigger();
+            if (_winTrigger != null)
+            {
+                _winTrigger.Initialize(_gridManager, _bottomRayManager, this);
+                _winTrigger.ResetTrigger();
+            }
+
+            if (_loseTrigger != null)
+            {
+                _loseTrigger.Initialize(_bottomRayManager, _conveyor);
+                _loseTrigger.ResetTrigger();
+            }
 
             Debug.Log($"[LevelLoader] Loaded level: {config.MapName} (index={config.LevelIndex}, target={target})");
         }
@@ -126,14 +149,66 @@ namespace FlowBlast.Gameplay
         /// </summary>
         public bool LoadNextLevel()
         {
-            if (_allLevels == null || _allLevels.Length == 0) return false;
+            if (_allLevels == null || _allLevels.Length == 0)
+            {
+                return false;
+            }
 
-            int currentIdx = _currentConfig != null ? _currentConfig.LevelIndex : 0;
-            int nextIdx = currentIdx + 1;
-            if (nextIdx >= _allLevels.Length) return false;
+            int currentIndex = GetCurrentLevelIndex();
+            int nextIndex = currentIndex + 1;
+            if (nextIndex >= _allLevels.Length)
+            {
+                return false;
+            }
 
-            LoadLevel(_allLevels[nextIdx]);
+            LoadLevel(_allLevels[nextIndex]);
             return true;
+        }
+
+        public bool AdvanceToNextLevel()
+        {
+            if (_allLevels == null || _allLevels.Length == 0)
+            {
+                return false;
+            }
+
+            int currentIndex = GetCurrentLevelIndex();
+            int nextIndex = currentIndex + 1;
+            if (nextIndex >= _allLevels.Length)
+            {
+                return false;
+            }
+
+            SaveManager saveManager = SaveManager.Instance;
+            if (saveManager != null)
+            {
+                saveManager.Data.CurrentLevel = nextIndex;
+                if (saveManager.Data.HighestUnlockedLevel < nextIndex)
+                {
+                    saveManager.Data.HighestUnlockedLevel = nextIndex;
+                }
+
+                saveManager.Save();
+            }
+
+            LoadLevel(_allLevels[nextIndex]);
+            return true;
+        }
+
+        private int GetCurrentLevelIndex()
+        {
+            if (_currentConfig != null)
+            {
+                return _currentConfig.LevelIndex;
+            }
+
+            SaveManager saveManager = SaveManager.Instance;
+            if (saveManager != null)
+            {
+                return saveManager.Data.CurrentLevel;
+            }
+
+            return 0;
         }
 
         public GridMapDataSO CurrentConfig => _currentConfig;

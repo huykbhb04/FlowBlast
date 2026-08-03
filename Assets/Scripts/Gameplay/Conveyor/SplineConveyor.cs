@@ -124,6 +124,8 @@ namespace FlowBlast.Gameplay.Conveyor
         private float gateDistance = -1f;
         private GridMapDataSO _pendingConfig; // deferred from SetupFromConfig before Start() ran
 
+        public event System.Action OnBlockStateChanged;
+
         /// <summary>
         /// Register block pools before Start() is called (e.g. from an Awake bootstrapper).
         /// The pools array must match blockPrefabs in length and color order.
@@ -187,6 +189,7 @@ namespace FlowBlast.Gameplay.Conveyor
             }
 
             DespawnFromPool(blockTransform);
+            OnBlockStateChanged?.Invoke();
         }
 
         private void Start()
@@ -697,6 +700,7 @@ namespace FlowBlast.Gameplay.Conveyor
                 if (i < blocks.Count - 1) sb.Append(", ");
             }
             Debug.Log(sb.ToString());
+            OnBlockStateChanged?.Invoke();
         }
 
         private void UpdateBlockDistances()
@@ -854,23 +858,53 @@ namespace FlowBlast.Gameplay.Conveyor
             for (int i = 0; i < blocks.Count; i++)
             {
                 Transform blockTransform = blocks[i];
-                if (blockTransform == null || !blockTransform.gameObject.activeInHierarchy)
+                if (!TryGetActiveColoredBlock(blockTransform, out ConveyorColoredBlock coloredBlock))
                 {
                     continue;
                 }
 
-                BlockHandle handle = blockTransform.GetComponent<BlockHandle>();
-                if (handle != null && handle.IsConsumed)
-                {
-                    continue;
-                }
-
-                ConveyorColoredBlock coloredBlock = blockTransform.GetComponent<ConveyorColoredBlock>();
-                if (coloredBlock != null && coloredBlock.Color == color)
+                if (coloredBlock.Color == color)
                 {
                     results.Add(coloredBlock);
                 }
             }
+        }
+
+        public bool HasActiveBlockWithColor(BoxColor color)
+        {
+            for (int i = 0; i < blocks.Count; i++)
+            {
+                Transform blockTransform = blocks[i];
+                if (!TryGetActiveColoredBlock(blockTransform, out ConveyorColoredBlock coloredBlock))
+                {
+                    continue;
+                }
+
+                if (coloredBlock.Color == color)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool TryGetActiveColoredBlock(Transform blockTransform, out ConveyorColoredBlock coloredBlock)
+        {
+            coloredBlock = null;
+            if (blockTransform == null || !blockTransform.gameObject.activeInHierarchy)
+            {
+                return false;
+            }
+
+            BlockHandle handle = blockTransform.GetComponent<BlockHandle>();
+            if (handle != null && handle.IsConsumed)
+            {
+                return false;
+            }
+
+            coloredBlock = blockTransform.GetComponent<ConveyorColoredBlock>();
+            return coloredBlock != null;
         }
 
         public bool MarkBlockConsumedForMagnet(ConveyorColoredBlock coloredBlock)
@@ -901,6 +935,7 @@ namespace FlowBlast.Gameplay.Conveyor
 
                 handle.MarkConsumed();
                 blocks[i] = null;
+                OnBlockStateChanged?.Invoke();
                 return true;
             }
 

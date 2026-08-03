@@ -1,104 +1,223 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using FlowBlast.Core;
-using FlowBlast.Gameplay.Grid;
 
 namespace FlowBlast.Gameplay.Conveyor
 {
-    /// <summary>
-    /// Detects the lose condition and transitions to <see cref="GameState.Lose"/>.
-    ///
-    /// Lose = bottom belt is full (all slots occupied) AND
-    ///        there are no more selectable boxes left on the grid.
-    ///
-    /// Attach to any persistent scene object (e.g. LevelManager root).
-    /// Checks once per frame during <see cref="GameState.Playing"/>.
-    /// </summary>
     [DisallowMultipleComponent]
     public class LoseTrigger : MonoBehaviour
     {
-        [Header("References")]
-        [Tooltip("BottomRayManager to check slot occupancy. Auto-detected if null.")]
-        [SerializeField] private BottomRayManager _bottomRay;
+        private const int REQUIRED_BOTTOM_BOX_COUNT = 4;
 
-        [Tooltip("GridManager to check remaining selectable boxes. Auto-detected if null.")]
-        [SerializeField] private GridManager _gridManager;
+        [Header("References")]
+        [SerializeField] private BottomRayManager _bottomRay;
+        [SerializeField] private SplineConveyor _topConveyor;
 
         [Header("Options")]
-        [Tooltip("Delay (seconds) after condition is met before showing LosePopup.")]
         [SerializeField, Min(0f)] private float _delayBeforePopup = 0.5f;
 
         [Header("Debug")]
         [SerializeField] private bool _logTrigger = true;
 
+        private Coroutine _triggerCoroutine;
         private bool _hasTriggered;
-        private float _conditionMetTime = -1f;
 
-        private void Awake()
+        private void OnDisable()
         {
-            if (_bottomRay == null)
-                _bottomRay = FindObjectOfType<BottomRayManager>();
-
-            if (_gridManager == null)
-                _gridManager = FindObjectOfType<GridManager>();
+            UnsubscribeBottomRay();
+            UnsubscribeTopConveyor();
+            StopTriggerCoroutine();
         }
 
-        private void OnEnable()
+        public void Initialize(BottomRayManager bottomRay, SplineConveyor topConveyor)
+        {
+            if (_bottomRay == bottomRay && _topConveyor == topConveyor)
+            {
+                return;
+            }
+
+            UnsubscribeBottomRay();
+            UnsubscribeTopConveyor();
+            _bottomRay = bottomRay;
+            _topConveyor = topConveyor;
+            SubscribeBottomRay();
+            SubscribeTopConveyor();
+        }
+
+        public void ResetTrigger()
         {
             _hasTriggered = false;
-            _conditionMetTime = -1f;
+            StopTriggerCoroutine();
+            EvaluateLoseCondition();
         }
 
-        private void Update()
+        private void SubscribeBottomRay()
         {
-            if (_hasTriggered) return;
-
-            // Only check during gameplay.
-            if (GameStateMachine.Instance != null && !GameStateMachine.Instance.IsPlaying)
+            if (_bottomRay == null)
+            {
                 return;
+            }
 
-            if (_bottomRay == null || _gridManager == null) return;
+            _bottomRay.OnSlotStateChanged += HandleGameplayStateChanged;
+        }
 
-            bool slotsFull = _bottomRay.IsFull;
-            bool noMoves = !_gridManager.HasSelectableBoxes();
-
-            if (slotsFull && noMoves)
+        private void UnsubscribeBottomRay()
+        {
+            if (_bottomRay == null)
             {
-                if (_conditionMetTime < 0f)
+                return;
+            }
+
+            _bottomRay.OnSlotStateChanged -= HandleGameplayStateChanged;
+        }
+
+        private void SubscribeTopConveyor()
+        {
+            if (_topConveyor == null)
+            {
+                return;
+            }
+
+            _topConveyor.OnBlockStateChanged += HandleGameplayStateChanged;
+        }
+
+        private void UnsubscribeTopConveyor()
+        {
+            if (_topConveyor == null)
+            {
+                return;
+            }
+
+            _topConveyor.OnBlockStateChanged -= HandleGameplayStateChanged;
+        }
+
+        private void HandleGameplayStateChanged()
+        {
+            EvaluateLoseCondition();
+        }
+
+        private void EvaluateLoseCondition()
+        {
+            if (_hasTriggered)
+            {
+                return;
+            }
+
+            if (GameStateMachine.Instance != null && !GameStateMachine.Instance.IsPlaying)
+            {
+                StopTriggerCoroutine();
+                return;
+            }
+
+            if (!IsLoseConditionMet())
+            {
+                StopTriggerCoroutine();
+                return;
+            }
+
+            StartTriggerCoroutine();
+        }
+
+        private bool IsLoseConditionMet()
+        {
+            if (_bottomRay == null || _topConveyor == null)
+            {
+                return false;
+            }
+
+            if (_bottomRay.OccupiedCount != REQUIRED_BOTTOM_BOX_COUNT)
+            {
+                return false;
+            }
+
+            return !HasAnyMatchingTopBlockForBottomSlots();
+        }
+
+        private bool HasAnyMatchingTopBlockForBottomSlots()
+        {
+            IReadOnlyList<BoxSlot> slots = _bottomRay.Slots;
+            for (int i = 0; i < slots.Count; i++)
+            {
+                BoxSlot slot = slots[i];
+                if (slot == null || !slot.IsOccupied || slot.IsCompleted)
                 {
-                    _conditionMetTime = Time.realtimeSinceStartup;
-                    if (_logTrigger)
-                        Debug.Log($"[LoseTrigger] Lose condition detected — waiting {_delayBeforePopup:F2}s before popup.");
+                    continue;
                 }
 
-                if (Time.realtimeSinceStartup - _conditionMetTime >= _delayBeforePopup)
+                BoxContainer container = slot.GetContainer();
+                if (container == null)
                 {
-                    _hasTriggered = true;
-                    TriggerLose();
+                    continue;
+                }
+
+                if (_topConveyor.HasActiveBlockWithColor(container.RequiredColor))
+                {
+                    return true;
                 }
             }
-            else
+
+            return false;
+        }
+
+        private void StartTriggerCoroutine()
+        {
+            if (_triggerCoroutine != null)
             {
-                // Condition no longer met (e.g. a slot freed up), reset timer.
-                _conditionMetTime = -1f;
+                return;
             }
+
+            _triggerCoroutine = StartCoroutine(TriggerLoseAfterDelay());
+        }
+
+        private void StopTriggerCoroutine()
+        {
+            if (_triggerCoroutine == null)
+            {
+                return;
+            }
+
+            StopCoroutine(_triggerCoroutine);
+            _triggerCoroutine = null;
+        }
+
+        private IEnumerator TriggerLoseAfterDelay()
+        {
+            if (_logTrigger)
+            {
+                Debug.Log($"[LoseTrigger] Lose condition detected — waiting {_delayBeforePopup:F2}s before popup.");
+            }
+
+            if (_delayBeforePopup > 0f)
+            {
+                yield return new WaitForSeconds(_delayBeforePopup);
+            }
+
+            _triggerCoroutine = null;
+            if (!IsLoseConditionMet())
+            {
+                yield break;
+            }
+
+            _hasTriggered = true;
+            TriggerLose();
         }
 
         private void TriggerLose()
         {
             if (_logTrigger)
+            {
                 Debug.Log("[LoseTrigger] Lose triggered!");
+            }
 
             if (GameStateMachine.Instance != null)
+            {
                 GameStateMachine.Instance.TransitionTo(GameState.Lose);
+            }
             else
+            {
                 Debug.LogWarning("[LoseTrigger] GameStateMachine.Instance is null.");
-        }
-
-        /// <summary>Reset so the trigger can fire again (call on level restart).</summary>
-        public void ResetTrigger()
-        {
-            _hasTriggered = false;
-            _conditionMetTime = -1f;
+            }
         }
     }
 }

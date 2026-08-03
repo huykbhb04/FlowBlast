@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -45,9 +46,12 @@ namespace FlowBlast.Gameplay.Conveyor
         private float _slotMovementOffsetT;
         private float _slotSplineLength;
 
+        public event Action OnSlotStateChanged;
+
         public IReadOnlyList<BoxSlot> Slots => _slots;
 
         public int OccupiedCount => _slots.Count(s => s != null && s.gameObject.activeInHierarchy && s.IsOccupied);
+        public bool HasOccupiedSlots => OccupiedCount > 0;
         public bool IsFull => CountActiveSlots() > 0 && _slots
             .Where(s => s != null && s.gameObject.activeInHierarchy)
             .All(s => s.IsOccupied);
@@ -118,6 +122,7 @@ namespace FlowBlast.Gameplay.Conveyor
             }
 
             slot.AssignBox(box, color, progressDisplay);
+            OnSlotStateChanged?.Invoke();
             Debug.Log($"[BottomRayManager] Placed {color} box into slot {slot.SlotIndex}. " +
                       $"Now occupied: {OccupiedCount}/{Slots.Count}.");
             return slot;
@@ -134,6 +139,7 @@ namespace FlowBlast.Gameplay.Conveyor
             Debug.Log($"[BottomRayManager] Slot {slot.SlotIndex} completed, clearing. " +
                       $"Now occupied: {OccupiedCount}/{Slots.Count}.");
             slot.ClearSlot();
+            OnSlotStateChanged?.Invoke();
         }
 
         /// <summary>
@@ -169,6 +175,7 @@ namespace FlowBlast.Gameplay.Conveyor
             EnsureRuntimeSlots();
             UpdateActiveSlots(activeSlotCount);
             ApplyEvenSlotSpacing();
+            OnSlotStateChanged?.Invoke();
 
             Debug.Log($"{name}: SetupSlots — requested={slotCount}, active={activeSlotCount}, capacity={capacity}.");
         }

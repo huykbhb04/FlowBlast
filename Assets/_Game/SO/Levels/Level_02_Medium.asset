@@ -19,10 +19,10 @@ MonoBehaviour:
     Color: 0
   - Type: 1
     Color: 0
-  - Type: 2
-    Color: 0
-  - Type: 2
-    Color: 0
+  - Type: 1
+    Color: 2
+  - Type: 1
+    Color: 2
   - Type: 1
     Color: 1
   - Type: 2
@@ -33,12 +33,6 @@ MonoBehaviour:
     Color: 0
   - Type: 1
     Color: 2
-  - Type: 2
-    Color: 0
-  - Type: 2
-    Color: 0
-  - Type: 2
-    Color: 0
   - Type: 1
     Color: 3
   - Type: 2
@@ -46,8 +40,12 @@ MonoBehaviour:
   - Type: 2
     Color: 0
   - Type: 1
-    Color: 0
-  - Type: 2
+    Color: 3
+  - Type: 1
+    Color: 3
+  - Type: 1
+    Color: 3
+  - Type: 1
     Color: 0
   - Type: 2
     Color: 0
@@ -57,10 +55,12 @@ MonoBehaviour:
     Color: 0
   - Type: 1
     Color: 1
-  - Type: 2
-    Color: 0
-  - Type: 2
-    Color: 0
+  - Type: 1
+    Color: 1
+  - Type: 1
+    Color: 1
+  - Type: 1
+    Color: 1
   - Type: 2
     Color: 0
   - Type: 2
@@ -98,15 +98,10 @@ MonoBehaviour:
   AvailableColors: 0000000001000000020000000300000004000000
   BoxPrefab: {fileID: 9168233812504392444, guid: 9d0a33004b84c0348b0af3e3c24dfe40, type: 3}
   WallPrefab: {fileID: 6441360976554641272, guid: b77498a17c7640b4cb883e763a1bcbc8, type: 3}
-  BackgroundPrefab: {fileID: 0}
-  SlotPrefab: {fileID: 0}
-  ExitPrefab: {fileID: 0}
   CellSize: 1
   CellSpacing: 1
   BoardOrigin: {x: 0, y: 0, z: 0}
-  BuildBackground: 1
   BlockSpeed: 4
-  BlocksPerSecond: 1
   BlocksPerCluster: 20
   SlotCount: 6
   SlotCapacity: 100

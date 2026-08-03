@@ -47,21 +47,25 @@ namespace FlowBlast.UI.Popup
         /// </summary>
         public void NextLevel()
         {
-            // Unlock next level in save data.
-            if (SaveManager.Instance != null)
+            FlowBlast.Gameplay.LevelLoader levelLoader = FlowBlast.Gameplay.LevelLoader.Instance;
+            bool loadedNextLevel = levelLoader != null && levelLoader.AdvanceToNextLevel();
+            if (levelLoader == null && SaveManager.Instance != null)
             {
                 SaveManager.Instance.Data.UnlockNextLevel();
                 SaveManager.Instance.Data.CurrentLevel++;
                 SaveManager.Instance.Save();
             }
 
-            // Transition back to Playing state (resets timeScale).
             if (GameStateMachine.Instance != null)
+            {
                 GameStateMachine.Instance.TransitionTo(GameState.Playing);
+            }
 
-            // Close popup and reload scene.
             Close();
-            ReloadScene();
+            if (!loadedNextLevel)
+            {
+                ReloadScene();
+            }
         }
 
         /// <summary>
@@ -84,13 +88,20 @@ namespace FlowBlast.UI.Popup
 
         private void UpdateCoinRewardDisplay()
         {
-            if (_coinRewardLabel == null) return;
+            if (_coinRewardLabel == null)
+            {
+                return;
+            }
 
-            var levelLoader = FindObjectOfType<FlowBlast.Gameplay.LevelLoader>();
+            FlowBlast.Gameplay.LevelLoader levelLoader = FlowBlast.Gameplay.LevelLoader.Instance;
             if (levelLoader != null && levelLoader.CurrentConfig != null)
+            {
                 _coinRewardLabel.text = $"+{levelLoader.CurrentConfig.CoinReward}";
+            }
             else
+            {
                 _coinRewardLabel.text = "";
+            }
         }
     }
 }
